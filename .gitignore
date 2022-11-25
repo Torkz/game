@@ -1,0 +1,4 @@
+#directories
+.vscode/
+build/
+misc/
