@@ -20,6 +20,48 @@ int WinMain(
 	int       show_code
 )
 {
+	char exe_file_path[MAX_PATH];
+	GetModuleFileNameA(0, exe_file_path, MAX_PATH);
+
+	char* exe_directory_ptr = exe_file_path;
+	int exe_directory_path_size = 0;
+	int step_counter = 0;
+	for(char* current = exe_file_path; *current; ++current)
+	{
+		if(*current == '\\')
+		{
+			exe_directory_ptr = current+1;
+			exe_directory_path_size += step_counter+1;
+			step_counter = 0;
+		}
+		else
+		{
+			++step_counter;
+		}
+	}
+
+	char* dll_file_name = "game.dll";
+	char dll_file_path[MAX_PATH];
+	_combine_two_strings(dll_file_path,
+		exe_file_path, exe_directory_path_size,
+		dll_file_name, _string_length(dll_file_name)
+	);
+
+	char* temp_dll_file_name = "game_temp.dll";
+	char temp_dll_file_path[MAX_PATH];
+	_combine_two_strings(temp_dll_file_path,
+		exe_file_path, exe_directory_path_size,
+		temp_dll_file_name, _string_length(temp_dll_file_name)
+	);
+
+	game_code game_code = {};
+	_load_game_code(&game_code, dll_file_path, temp_dll_file_path);
+	if(!game_code.is_valid)
+	{
+		//todo(staffan): tell user that game.dll loading failed.
+		return 0;
+	}
+
 	//todo(staffan): get this from windows.
 	int monitor_update_frequency = 60;
 	int game_update_frequency = monitor_update_frequency/2;
@@ -123,8 +165,6 @@ int WinMain(
 		return 0;
 	}
 
-	game_code game_code = {};
-
 	game::game_time game_time = {0};
 	game::input_state last_frame_input = {0};
 #if 0
@@ -137,7 +177,7 @@ int WinMain(
 #endif
 	while (_running)
 	{
-		_load_game_code(&game_code);
+		_load_game_code(&game_code, dll_file_path, temp_dll_file_path);
 
 		game::input_state game_input;
 		_process_window_messages(window, &game_input, &last_frame_input);
@@ -258,6 +298,28 @@ int WinMain(
 	return 0;
 }
 
+inline internal int _string_length(char* string)
+{
+	int result = 0;
+	for(char* current = string; *current; ++current)
+	{
+		++result;
+	}
+	return result;
+}
+
+inline internal void _combine_two_strings(char* destination, char* string_a, int string_a_length, char* string_b, int string_b_length)
+{
+	for(int i = 0; i<string_a_length; ++i)
+	{
+		destination[i] = string_a[i];
+	}
+	for(int i = 0; i<string_b_length; ++i)
+	{
+		destination[string_a_length+i] = string_b[i];
+	}
+}
+
 LRESULT CALLBACK main_window_callback(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	LRESULT result = 0;
@@ -351,13 +413,10 @@ inline internal bool _should_load_game_code(game_code* game_code, FILETIME file_
 	return !game_code->is_valid || (CompareFileTime(&game_code->file_last_write_time, &file_last_write_time)!=0);
 }
 
-internal void _load_game_code(game_code* game_code)
+internal void _load_game_code(game_code* game_code, char* dll_file_path, char* temp_dll_file_path)
 {
-	const char* dll_name = "game.dll";
-	const char* dll_name_temp = "game_temp.dll";
-
 	WIN32_FILE_ATTRIBUTE_DATA attribute_data;
-	GetFileAttributesExA(dll_name, GetFileExInfoStandard, (LPVOID)&attribute_data);
+	GetFileAttributesExA(dll_file_path, GetFileExInfoStandard, (LPVOID)&attribute_data);
 
 	if(_should_load_game_code(game_code, attribute_data.ftLastWriteTime))
 	{
@@ -366,9 +425,9 @@ internal void _load_game_code(game_code* game_code)
 			FreeLibrary(game_code->dll_handle);
 		}
 
-		CopyFileA(dll_name, dll_name_temp, false);
+		CopyFileA(dll_file_path, temp_dll_file_path, false);
 
-		game_code->dll_handle = LoadLibraryA(dll_name_temp);
+		game_code->dll_handle = LoadLibraryA(temp_dll_file_path);
 		if(game_code->dll_handle)
 		{
 			game_code->file_last_write_time = attribute_data.ftLastWriteTime;
@@ -529,7 +588,7 @@ internal void _update_window(HDC device_context, RECT* window_rect, win_bitmap_b
 	int window_height = window_rect->bottom - window_rect->top;
 	StretchDIBits(
 		device_context,
-		0, 0, window_width, window_height,
+		0, 0, buffer->width, buffer->height,
 		0, 0, buffer->width, buffer->height,
 		buffer->memory,
 		&buffer->info,

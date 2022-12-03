@@ -88,7 +88,7 @@ internal void _update_sine_wave(game_state* game_state, game_time time)
 	float volume_height_scalar = 0.5f * ((float)input::this_frame->mouse_y)/(float)input::this_frame->window_height;
 	float volume_scalar = volume_width_scalar + volume_height_scalar;
 	float volume_low = 1000.0f;
-	float volume_high = 6000.0f;
+	float volume_high = 3000.0f;
 	game_state->volume = (((1.0f-volume_scalar)*volume_low) + (volume_scalar*(volume_high-volume_low)));
 }
 
