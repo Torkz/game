@@ -1,5 +1,6 @@
 #include <stdint.h> //todo(staffan): remove this dependency?
-#include "input.h"
+#include "game_input.h"
+#include "game_tilemap.h"
 
 #define global_variable static
 #define internal static
@@ -66,20 +67,16 @@ GAME_FILL_AUDIO_OUTPUT(fill_audio_output_stub)
 }
 
 ///
+struct world
+{
+	tile_map* tile_map;
+};
+
 struct game_state
 {
-	int x_offset;
-	int y_offset;
-
-	int wave_counter;
-	float tone_herz;
-	float volume;
-	float t_sine;
+	world* world;
+	tile_map_position player_position;
 };
 
 //forward declared "private" functions
-internal void _handle_input(game_state* game_state, game_time time);
-internal void _update_sine_wave(game_state* game_state, game_time time);
-internal void _render_gradient(game_state* game_state, render_output& render_output);
-internal void _fill_sine_wave_buffer(game_state* game_state, audio_output& audio_output);
 }

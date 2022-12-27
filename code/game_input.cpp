@@ -24,4 +24,14 @@ internal inline bool button_held(game::buttons button_code)
 	game::button_state* button = &this_frame->buttons[button_code];
 	return (button->half_transitions%2 == !button->was_down) ? true : false;
 }
+
+internal inline short mouse_delta_x()
+{
+	return this_frame->mouse_delta_x;
+}
+
+internal inline short mouse_delta_y()
+{
+	return this_frame->mouse_delta_y;
+}
 } //namespace input

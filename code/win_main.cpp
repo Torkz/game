@@ -172,7 +172,7 @@ int WinMain(
 #endif
 
 	LARGE_INTEGER last_time = _windows_time();
-#if 0
+#if 1
 	int64_t last_cycle_count = __rdtsc();
 #endif
 	while (_running)
@@ -260,7 +260,7 @@ int WinMain(
 		float work_time_elapsed = _time_elapsed(last_time, work_time);
 		if (work_time_elapsed < target_dt)
 		{
-			Sleep((int)(work_time_elapsed*1000.0f));
+			// Sleep((int)((target_dt-work_time_elapsed)*1000.0f));
 			do
 			{
 				work_time = _windows_time();
@@ -285,8 +285,17 @@ int WinMain(
 		snprintf(buffer, 256, "ms/frame: %fms fps:%f mc:%f dt:%.5f t:%.2f\n", ms_elapsed, fps, mcpf, game_time.dt, game_time.t);
 		OutputDebugStringA(buffer);
 #endif
+#if GAME_INTERNAL
+		game_time.dt = _time_elapsed(last_time, end_time);
+		if(game_time.dt > target_dt)
+		{
+			game_time.dt = target_dt;
+		}
+		game_time.t += game_time.dt;
+#else
 		game_time.dt = _time_elapsed(last_time, end_time);
 		game_time.t += game_time.dt;
+#endif
 		last_time = end_time;
 	}
 
@@ -569,7 +578,7 @@ internal void _resize_dib_section(win_bitmap_buffer* bitmap_buffer, int width, i
 	bitmap_buffer->width = width;
 	bitmap_buffer->height = height;
 	bitmap_buffer->bytes_per_pixel = 4;
-	bitmap_buffer->pitch = bitmap_buffer->width*bitmap_buffer->bytes_per_pixel;
+	bitmap_buffer->pitch = bitmap_buffer->width * bitmap_buffer->bytes_per_pixel;
 
 	bitmap_buffer->info.bmiHeader.biSize = sizeof(bitmap_buffer->info.bmiHeader);
 	bitmap_buffer->info.bmiHeader.biWidth = bitmap_buffer->width;
@@ -584,11 +593,19 @@ internal void _resize_dib_section(win_bitmap_buffer* bitmap_buffer, int width, i
 
 internal void _update_window(HDC device_context, RECT* window_rect, win_bitmap_buffer* buffer)
 {
+	int offset_x = 10;
+	int offset_y = 10;
 	int window_width = window_rect->right - window_rect->left;
 	int window_height = window_rect->bottom - window_rect->top;
+
+	PatBlt(device_context, 0, 0, window_width, offset_y, BLACKNESS);
+	PatBlt(device_context, 0, 0, offset_x, window_height, BLACKNESS);
+	PatBlt(device_context, offset_x, offset_y+buffer->height, window_width, window_height, BLACKNESS);
+	PatBlt(device_context, offset_x+buffer->width, 0, window_width, window_height, BLACKNESS);
+
 	StretchDIBits(
 		device_context,
-		0, 0, buffer->width, buffer->height,
+		offset_x, offset_y, buffer->width, buffer->height,
 		0, 0, buffer->width, buffer->height,
 		buffer->memory,
 		&buffer->info,
