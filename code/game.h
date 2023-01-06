@@ -1,6 +1,4 @@
 #include <stdint.h> //todo(staffan): remove this dependency?
-#include "game_input.h"
-#include "game_tilemap.h"
 
 #define global_variable static
 #define internal static
@@ -8,6 +6,8 @@
 
 #define PI 3.14159265359f
 #define TAU PI*2.0f
+
+#define memory_index size_t
 
 #if GAME_SLOWMODE
 #define assert(expression) {if(!(expression)){*(uint8_t*)0 = 0;}}
@@ -20,14 +20,41 @@
 #define gigabytes(value) (megabytes(value)*1024)
 #define terabytes(value) (gigabytes(value)*1024)
 
+
+#include "game_input.h"
+
+namespace game
+{
+struct memory_space
+{
+	uint8_t* base;
+	memory_index max_memory;
+	memory_index used_memory;
+};
+
+#define _push_struct(space, struct) (struct*)_push_size(space, sizeof(struct));
+#define _push_array(space, type, num_elements) (type*)_push_size(space, sizeof(type)*num_elements);
+
+internal
+void* _push_size(memory_space* space, memory_index size)
+{
+	assert((space->used_memory + size) <= space->max_memory);
+	void* result = (void*)(space->base + space->used_memory);
+	space->used_memory += size;
+	return result;
+}
+}//namespace game
+#include "game_tilemap.h"
+#include "game_random.h"
+
 namespace game
 {
 struct game_memory //NOTE(staffan): memory REQUIRES to be initialized to zero
 {
-	uint64_t permanent_storage_size;
+	memory_index permanent_storage_size;
 	void* permanent_storage;
 
-	uint64_t transient_storage_size;
+	memory_index transient_storage_size;
 	void* transient_storage;
 
 	bool is_initialized;
@@ -74,6 +101,8 @@ struct world
 
 struct game_state
 {
+	memory_space world_space;
+
 	world* world;
 	tile_map_position player_position;
 };

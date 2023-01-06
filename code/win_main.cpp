@@ -413,6 +413,10 @@ inline internal game::button_state* _button_state_from_key_code(game::input_stat
 	{
 		return &game_input->buttons[game::buttons::W];
 	}
+	else if(key_code == BUTTON_SPACEBAR)
+	{
+		return &game_input->buttons[game::buttons::SPACEBAR];
+	}
 
 	return nullptr;
 }

@@ -13,7 +13,7 @@ internal inline int ceil_float_to_int(float value)
 
 internal inline int round_float_to_int(float value)
 {
-	int result = (int)(value+0.5f);
+	int result = (int)roundf(value);
 	return result;
 }
 
