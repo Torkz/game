@@ -136,13 +136,6 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 
 	if(!memory->is_initialized)
 	{
-		debug_read_file_results file = memory->debug_read_entire_file(__FILE__);
-		if(file.content)
-		{
-			memory->debug_write_entire_file("test.cpp", file.size, file.content);
-			memory->debug_free_file_memory(file.content);
-		}
-
 		game_state->player_position.tile_x = 3;
 		game_state->player_position.tile_y = 3;
 		game_state->player_position.tile_z = 0;
@@ -352,7 +345,7 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	world* world = game_state->world;
 	tile_map* tile_map = world->tile_map;
 
-	int tile_side_in_pixels = 8;
+	int tile_side_in_pixels = 60;
 	float metres_to_pixels = tile_side_in_pixels/tile_map->tile_side_in_metres;
 
 	input::new_frame(&input);

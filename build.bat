@@ -10,6 +10,6 @@ pushd build
 
 del *.pdb
 
-cl /LD %shared_compiler_flags% -Fmgame.map ../code/game.cpp /link %shared_linker_flags% /PDB:%game_pdb_name% /EXPORT:update_and_render /EXPORT:fill_audio_output
-cl %shared_compiler_flags% -Fmwin_game.map ../code/win_main.cpp /link %shared_linker_flags% %libs%
+cl /LD %shared_compiler_flags% %additional_compiler_flags% -Fmgame.map ../code/game.cpp /link %shared_linker_flags% /PDB:%game_pdb_name% /EXPORT:update_and_render /EXPORT:fill_audio_output
+cl %shared_compiler_flags% %additional_compiler_flags% -Fmwin_game.map ../code/win_main.cpp /link %shared_linker_flags% %libs%
 popd

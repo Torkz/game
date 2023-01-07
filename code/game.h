@@ -49,6 +49,7 @@ void* _push_size(memory_space* space, memory_index size)
 
 namespace game
 {
+#if GAME_INTERNAL
 struct debug_read_file_results
 {
 	void* content;
@@ -60,6 +61,7 @@ typedef DEBUG_READ_ENTIRE_FILE(debug_read_entire_file_def);
 typedef DEBUG_WRITE_ENTIRE_FILE(debug_write_entire_file_def);
 #define DEBUG_FREE_FILE_MEMORY(name) void name(void* memory)
 typedef DEBUG_FREE_FILE_MEMORY(debug_free_file_memory_def);
+#endif
 
 struct game_memory //NOTE(staffan): memory REQUIRES to be initialized to zero
 {
@@ -69,9 +71,11 @@ struct game_memory //NOTE(staffan): memory REQUIRES to be initialized to zero
 	memory_index transient_storage_size;
 	void* transient_storage;
 
+#if GAME_INTERNAL
 	debug_read_entire_file_def* debug_read_entire_file;
 	debug_write_entire_file_def* debug_write_entire_file;
 	debug_free_file_memory_def* debug_free_file_memory;
+#endif
 
 	bool is_initialized;
 };

@@ -84,8 +84,8 @@ int WinMain(
 		return 0;
 	}
 
-	int wanted_width = 1280;
-	int wanted_height = 720;
+	int wanted_width = 960; //1920/2
+	int wanted_height = 540; //1080/2
 	DWORD window_style = WS_OVERLAPPEDWINDOW|WS_VISIBLE;
 	RECT wanted_window_rect = {
 		0, 0, wanted_width, wanted_height
@@ -156,9 +156,11 @@ int WinMain(
 	memory.permanent_storage = (uint8_t*)allocated_memory + audio_memory_size;
 	memory.transient_storage = (uint8_t*)allocated_memory + audio_memory_size + memory.permanent_storage_size;
 
+#if GAME_INTERNAL
 	memory.debug_read_entire_file = &debug_read_entire_file;
 	memory.debug_write_entire_file = &debug_write_entire_file;
 	memory.debug_free_file_memory = &debug_free_file_memory;
+#endif
 
 	_resize_dib_section(&_bitmap_buffer, wanted_width, wanted_height);
 	//xaudio2 test
@@ -713,6 +715,7 @@ uint32_t safe_truncate_uint64(uint64_t value)
 	return result;
 }
 
+#if GAME_INTERNAL
 DEBUG_FREE_FILE_MEMORY(debug_free_file_memory)
 {
 	VirtualFree(memory, 0, MEM_RELEASE);
@@ -725,12 +728,14 @@ DEBUG_READ_ENTIRE_FILE(debug_read_entire_file)
 	HANDLE handle = CreateFileA(file_name, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if(handle == INVALID_HANDLE_VALUE)
 	{
+		//todo(staffan): add logging
 		return result;
 	}
 
 	LARGE_INTEGER file_size;
 	if(!GetFileSizeEx(handle, &file_size))
 	{
+		//todo(staffan): add logging
 		CloseHandle(handle);
 		return result;
 	}
@@ -739,6 +744,7 @@ DEBUG_READ_ENTIRE_FILE(debug_read_entire_file)
 	void* content = VirtualAlloc(0, file_size_32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 	if(content == 0)
 	{
+		//todo(staffan): add logging
 		CloseHandle(handle);
 		return result;
 	}
@@ -746,6 +752,7 @@ DEBUG_READ_ENTIRE_FILE(debug_read_entire_file)
 	DWORD bytes_read;
 	if(!ReadFile(handle, content, file_size_32, &bytes_read, 0) || file_size_32 != bytes_read)
 	{
+		//todo(staffan): add logging
 		debug_free_file_memory(content);
 		CloseHandle(handle);
 		return result;
@@ -779,3 +786,4 @@ DEBUG_WRITE_ENTIRE_FILE(debug_write_entire_file)
 
 	CloseHandle(handle);
 }
+#endif
