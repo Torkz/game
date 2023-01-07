@@ -136,6 +136,13 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 
 	if(!memory->is_initialized)
 	{
+		debug_read_file_results file = memory->debug_read_entire_file(__FILE__);
+		if(file.content)
+		{
+			memory->debug_write_entire_file("test.cpp", file.size, file.content);
+			memory->debug_free_file_memory(file.content);
+		}
+
 		game_state->player_position.tile_x = 3;
 		game_state->player_position.tile_y = 3;
 		game_state->player_position.tile_z = 0;

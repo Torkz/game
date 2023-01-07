@@ -41,3 +41,7 @@ internal void _resize_dib_section(win_bitmap_buffer* bitmap_buffer, int width, i
 internal void _update_window(HDC device_context, RECT* window_rect, win_bitmap_buffer* buffer);
 internal void _initialize_xaudio2(WORD num_channels, WORD bits_per_sample, DWORD sample_rate, float buffer_duration);
 internal void _post_error(const char* function);
+
+DEBUG_FREE_FILE_MEMORY(debug_free_file_memory);
+DEBUG_READ_ENTIRE_FILE(debug_read_entire_file);
+DEBUG_WRITE_ENTIRE_FILE(debug_write_entire_file);

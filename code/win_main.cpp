@@ -156,6 +156,10 @@ int WinMain(
 	memory.permanent_storage = (uint8_t*)allocated_memory + audio_memory_size;
 	memory.transient_storage = (uint8_t*)allocated_memory + audio_memory_size + memory.permanent_storage_size;
 
+	memory.debug_read_entire_file = &debug_read_entire_file;
+	memory.debug_write_entire_file = &debug_write_entire_file;
+	memory.debug_free_file_memory = &debug_free_file_memory;
+
 	_resize_dib_section(&_bitmap_buffer, wanted_width, wanted_height);
 	//xaudio2 test
 	HRESULT result;
@@ -699,4 +703,79 @@ internal void _post_error(const char* function)
 
 	LocalFree(message_buffer);
 	LocalFree(display_buffer);
+}
+
+inline internal
+uint32_t safe_truncate_uint64(uint64_t value)
+{
+	assert(value <= 0xFFFFFFFF);
+	uint32_t result = (uint32_t)value;
+	return result;
+}
+
+DEBUG_FREE_FILE_MEMORY(debug_free_file_memory)
+{
+	VirtualFree(memory, 0, MEM_RELEASE);
+}
+
+DEBUG_READ_ENTIRE_FILE(debug_read_entire_file)
+{
+	game::debug_read_file_results result = {};
+
+	HANDLE handle = CreateFileA(file_name, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(handle == INVALID_HANDLE_VALUE)
+	{
+		return result;
+	}
+
+	LARGE_INTEGER file_size;
+	if(!GetFileSizeEx(handle, &file_size))
+	{
+		CloseHandle(handle);
+		return result;
+	}
+
+	uint32_t file_size_32 = safe_truncate_uint64(file_size.QuadPart);
+	void* content = VirtualAlloc(0, file_size_32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+	if(content == 0)
+	{
+		CloseHandle(handle);
+		return result;
+	}
+
+	DWORD bytes_read;
+	if(!ReadFile(handle, content, file_size_32, &bytes_read, 0) || file_size_32 != bytes_read)
+	{
+		debug_free_file_memory(content);
+		CloseHandle(handle);
+		return result;
+	}
+
+	CloseHandle(handle);
+
+	result.content = content;
+	result.size = file_size_32;
+
+	return result;
+}
+
+DEBUG_WRITE_ENTIRE_FILE(debug_write_entire_file)
+{
+	HANDLE handle = CreateFileA(file_name, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if(handle == INVALID_HANDLE_VALUE)
+	{
+		//todo(staffan): add logging
+		return;
+	}
+
+	DWORD size_to_write = safe_truncate_uint64(memory_size);
+	DWORD size_written;
+	if(!WriteFile(handle, memory, size_to_write, &size_written, 0) || size_written != size_to_write)
+	{
+		//todo(staffan): add logging
+		CloseHandle(handle);
+		return;
+	}
+
+	CloseHandle(handle);
 }
