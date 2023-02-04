@@ -1,5 +1,35 @@
 #include <stdint.h> //todo(staffan): remove this dependency?
 
+//
+//	Compilers
+//
+#if !defined(COMPILER_MSVC)
+#define COMPILER_MSVC 0
+#endif
+
+#if !defined(COMPILER_LLVM)
+#define COMPILER_LLVM 0
+#endif
+
+#if !COMPILER_MSVC && !COMPILER_LLVM
+#if _MSC_VER
+#undef COMPILER_MSVC
+#define COMPILER_MSVC 1
+#else
+#undef COMPILER_LLVM
+#define COMPILER_LLVM 1
+#endif
+#endif
+
+#if COMPILER_MSVC
+#include <intrin.h>
+#pragma intrinsic(_BitScanForward)
+#endif
+//
+//	/Compilers
+//
+
+
 #define global_variable static
 #define internal static
 #define local_persist static
@@ -49,17 +79,24 @@ void* _push_size(memory_space* space, memory_index size)
 
 namespace game
 {
+struct thread_context
+{
+	int placeholder;
+};
+
 #if GAME_INTERNAL
 struct debug_read_file_results
 {
 	void* content;
 	memory_index size;
 };
-#define DEBUG_READ_ENTIRE_FILE(name) game::debug_read_file_results name(char* file_name)
+#define DEBUG_READ_ENTIRE_FILE(name) game::debug_read_file_results name(game::thread_context* thread, char* file_name)
 typedef DEBUG_READ_ENTIRE_FILE(debug_read_entire_file_def);
-#define DEBUG_WRITE_ENTIRE_FILE(name) void name(char* file_name, memory_index memory_size, void* memory)
+
+#define DEBUG_WRITE_ENTIRE_FILE(name) void name(game::thread_context* thread, char* file_name, memory_index memory_size, void* memory)
 typedef DEBUG_WRITE_ENTIRE_FILE(debug_write_entire_file_def);
-#define DEBUG_FREE_FILE_MEMORY(name) void name(void* memory)
+
+#define DEBUG_FREE_FILE_MEMORY(name) void name(game::thread_context* thread, void* memory)
 typedef DEBUG_FREE_FILE_MEMORY(debug_free_file_memory_def);
 #endif
 
@@ -101,13 +138,13 @@ struct game_time
 	float dt;
 };
 
-#define GAME_UPDATE_AND_RENDER(name) void name(game_memory* memory, game_time time, input_state input, render_output& render_output)
+#define GAME_UPDATE_AND_RENDER(name) void name(thread_context* thread, game_memory* memory, game_time time, input_state input, render_output& render_output)
 typedef GAME_UPDATE_AND_RENDER(update_and_render_def);
 GAME_UPDATE_AND_RENDER(update_and_render_stub)
 {
 }
 
-#define GAME_FILL_AUDIO_OUTPUT(name) void name(game_memory* memory, audio_output& audio_output)
+#define GAME_FILL_AUDIO_OUTPUT(name) void name(thread_context* thread, game_memory* memory, audio_output& audio_output)
 typedef GAME_FILL_AUDIO_OUTPUT(fill_audio_output_def);
 GAME_FILL_AUDIO_OUTPUT(fill_audio_output_stub)
 {
@@ -119,12 +156,23 @@ struct world
 	tile_map* tile_map;
 };
 
+struct loaded_bitmap
+{
+	uint32_t* pixels;
+
+	int32_t width;
+	int32_t height;
+};
+
 struct game_state
 {
 	memory_space world_space;
 
 	world* world;
 	tile_map_position player_position;
+
+	uint32_t* pixels;
+	loaded_bitmap test_bitmap;
 };
 
 //forward declared "private" functions

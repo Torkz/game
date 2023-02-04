@@ -170,6 +170,8 @@ int WinMain(
 		//todo(staffan): add logging
 		return 0;
 	}
+	
+	game::thread_context thread = {};
 
 	game::game_time game_time = {0};
 	game::input_state last_frame_input = {0};
@@ -194,7 +196,7 @@ int WinMain(
 		game_render_output.width = _bitmap_buffer.width;
 		game_render_output.pitch = _bitmap_buffer.pitch;
 
-		game_code.update_and_render(&memory, game_time, game_input, game_render_output);
+		game_code.update_and_render(&thread, &memory, game_time, game_input, game_render_output);
 
 		{ //render
 			HDC device_context = GetDC(window);
@@ -216,7 +218,7 @@ int WinMain(
 			game_audio_output.sample_rate = sample_rate;
 			game_audio_output.num_samples_to_fill = num_samples_per_buffer*num_audio_buffers_to_fill;
 
-			game_code.fill_audio_output(&memory, game_audio_output);
+			game_code.fill_audio_output(&thread, &memory, game_audio_output);
 
 			uint16_t* input_sample = (uint16_t*)audio_buffer;
 			for(
@@ -753,7 +755,7 @@ DEBUG_READ_ENTIRE_FILE(debug_read_entire_file)
 	if(!ReadFile(handle, content, file_size_32, &bytes_read, 0) || file_size_32 != bytes_read)
 	{
 		//todo(staffan): add logging
-		debug_free_file_memory(content);
+		debug_free_file_memory(thread, content);
 		CloseHandle(handle);
 		return result;
 	}

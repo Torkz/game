@@ -1,4 +1,5 @@
 #include "game.h"
+#include "game_intrinsics.cpp"
 #include "game_math.cpp"
 #include "game_input.cpp"
 #include "game_tilemap.cpp"
@@ -6,72 +7,6 @@
 namespace game
 {
 
-#if 0
-internal void _draw_rectangle(render_output& output, float min_x, float min_y, float max_x, float max_y, float red, float green, float blue)
-{
-	int min_x_trunc = (int)min_x;
-	int min_y_trunc = (int)min_y;
-	int max_x_ceiled = _ceil_float_to_int(max_x);
-	int max_y_ceiled = _ceil_float_to_int(max_y);
-
-	if(min_x_trunc < 0)
-	{
-		min_x_trunc = 0;
-	}
-
-	if(min_y_trunc < 0)
-	{
-		min_y_trunc = 0;
-	}
-
-	if(max_x_ceiled > output.width)
-	{
-		max_x_ceiled = output.width;
-	}
-
-	if(max_y_ceiled > output.height)
-	{
-		max_y_ceiled = output.height;
-	}
-
-	float r = red*255.0f;
-	float g = green*255.0f;
-	float b = blue*255.0f;
-
-	float max_x_alpha = min_x - (float)min_x_trunc;
-	float min_x_alpha = 1.0f - max_x_alpha;
-	float max_y_alpha = min_y - (float)min_y_trunc;
-	float min_y_alpha = 1.0f - max_y_alpha;
-
-	uint8_t* row = (uint8_t*)output.memory+(min_y_trunc*output.pitch);
-	for(int y=min_y_trunc; y<max_y_ceiled; ++y)
-	{
-		float y_alpha = 1.0f;
-		y_alpha = y==min_y_trunc ? min_y_alpha : y_alpha;
-		y_alpha = y==(max_y_ceiled-1) ? max_y_alpha : y_alpha;
-
-		for(int x=min_x_trunc; x<max_x_ceiled; ++x)
-		{
-			float x_alpha = 1.0f;
-			x_alpha = x==min_x_trunc ? min_x_alpha : x_alpha;
-			x_alpha = x==(max_x_ceiled-1) ? max_x_alpha : x_alpha;
-
-			float alpha = x_alpha < y_alpha ? x_alpha : y_alpha;
-			
-			uint32_t* pixel = (uint32_t*)row+x;
-			uint8_t pixel_r = ((*pixel >> 16) & 0xff);
-			uint8_t pixel_g = ((*pixel >> 8) & 0xff);
-			uint8_t pixel_b = (*pixel & 0xff);
-
-			*((uint32_t*)row+x) =
-				(_round_float_to_uint32(_lerp((float)pixel_r, r, alpha))<<16) +
-				(_round_float_to_uint32(_lerp((float)pixel_g, g, alpha))<<8) +
-				_round_float_to_uint32(_lerp((float)pixel_b, b, alpha));
-		}
-		row += output.pitch;
-	}
-}
-#else
 internal void _draw_rectangle(render_output& output, float min_x, float min_y, float max_x, float max_y, float red, float green, float blue)
 {
 	int min_x_rounded = math::round_float_to_uint32(min_x);
@@ -100,8 +35,8 @@ internal void _draw_rectangle(render_output& output, float min_x, float min_y, f
 	}
 
 	uint32_t color =
-		(math::round_float_to_uint32(red*255.0f)<<16) +
-		(math::round_float_to_uint32(green*255.0f)<<8) +
+		(math::round_float_to_uint32(red*255.0f)<<16) |
+		(math::round_float_to_uint32(green*255.0f)<<8) |
 		math::round_float_to_uint32(blue*255.0f);
 
 	uint8_t* row = (uint8_t*)output.memory+(min_y_rounded*output.pitch);
@@ -114,7 +49,68 @@ internal void _draw_rectangle(render_output& output, float min_x, float min_y, f
 		row += output.pitch;
 	}
 }
-#endif
+
+internal void
+_draw_bitmap(render_output* output, loaded_bitmap* bitmap, float start_x, float start_y)
+{
+	int blit_width = bitmap->width;
+	int blit_height = bitmap->height;
+
+	int rounded_start_x = math::round_float_to_uint32(start_x);
+	int rounded_start_y = math::round_float_to_uint32(start_y);
+
+	uint32_t* source_row = bitmap->pixels + bitmap->width*(bitmap->height-1);
+
+	if(rounded_start_x < 0)
+	{
+		source_row -= rounded_start_x; 
+		blit_width += rounded_start_x;
+		rounded_start_x = 0;
+	}
+
+	if(rounded_start_y < 0)
+	{
+		source_row += rounded_start_y*bitmap->width;
+		blit_height += rounded_start_y;
+		rounded_start_y = 0;
+	}
+
+	if((rounded_start_x+blit_width) > output->width)
+	{
+		blit_width -= (rounded_start_x+blit_width)-output->width;
+	}
+
+	if((rounded_start_y+blit_height) > output->height)
+	{
+		blit_height -= (rounded_start_y+blit_height)-output->height;
+	}
+
+	if(blit_width <= 0 || blit_height <= 0)
+	{
+		return;
+	}
+
+	uint8_t* dest_row = (uint8_t*)output->memory + rounded_start_y*output->pitch;
+	for(int y=rounded_start_y;
+		y<blit_height;
+		++y)
+	{
+		for(int x=rounded_start_x;
+			x<blit_width;
+			++x)
+		{
+			uint32_t* source = source_row+x;
+			uint32_t* dest = (uint32_t*)dest_row+x;
+
+			if(*source & 0xFF000000)
+			{
+				*dest = *source;
+			}
+		}
+		source_row -= bitmap->width;
+		dest_row += output->pitch;
+	}
+}
 
 internal
 void _initialize_memory_space(memory_space* space, uint8_t* base, memory_index max_memory)
@@ -124,7 +120,101 @@ void _initialize_memory_space(memory_space* space, uint8_t* base, memory_index m
 	space->used_memory = 0;
 }
 
+#pragma pack(push, 1)
+struct bmp_header
+{
+	uint16_t file_type;     /* File type, always 4D42h ("BM") */
+	uint32_t file_size;     /* Size of the file in bytes */
+	uint16_t reserved_1;    /* Always 0 */
+	uint16_t reserved_2;    /* Always 0 */
+	uint32_t bitmap_offset; /* Starting position of image data in bytes */
+	uint32_t header_size;   /* Size of this header in bytes */
+	int32_t width;           /* Image width in pixels */
+	int32_t height;          /* Image height in pixels */
+	uint16_t planes;          /* Number of color planes */
+	uint16_t bits_per_pixel;    /* Number of bits per pixel */
+	uint32_t compression;     /* Compression methods used */
+	uint32_t size_of_bitmap;    /* Size of bitmap in bytes */
+	int32_t horzizontal_resolution;  /* Horizontal resolution in pixels per meter */
+	int32_t vertical_resolution;  /* Vertical resolution in pixels per meter */
+	uint32_t colors_used;      /* Number of colors in the image */
+	uint32_t colors_important; /* Minimum number of important colors */
 
+	uint32_t red_mask;         /* Mask identifying bits of red component */
+	uint32_t green_mask;       /* Mask identifying bits of green component */
+	uint32_t blue_mask;        /* Mask identifying bits of blue component */
+};
+#pragma pack(pop)
+
+struct least_significant_bit_result
+{
+	bool found;
+	uint32_t bit;
+};
+inline internal
+least_significant_bit_result _find_least_significant_bit(uint32_t value)
+{
+	least_significant_bit_result result = {0};
+
+	for(uint32_t i=0;
+		i<32;
+		++i)
+	{
+		if((value >> i) & 1)
+		{
+			result.found = true;
+			result.bit = i;
+			break;
+		}
+	}
+
+	return result;
+}
+
+internal
+loaded_bitmap _debug_load_bmp(thread_context* thread, debug_read_entire_file_def* read_entire_file, char* file_name)
+{
+	loaded_bitmap result = {};
+	debug_read_file_results read_result = read_entire_file(thread, file_name);
+	if(!read_result.content)
+	{
+		result.pixels = nullptr;
+		return result;
+	}
+
+	bmp_header* header = (bmp_header*)read_result.content;
+	result.pixels = (uint32_t*)((uint8_t*)read_result.content + header->bitmap_offset);
+	result.width = header->width;
+	result.height = header->height;
+
+	assert(header->compression == 3);
+
+	uint32_t red_mask = header->red_mask;
+	uint32_t green_mask = header->green_mask;
+	uint32_t blue_mask = header->blue_mask;
+	uint32_t alpha_mask = ~(red_mask | green_mask | blue_mask);
+
+	using namespace bit;
+	scan_bit_result red_shift = find_least_significant_set_bit(red_mask);
+	scan_bit_result green_shift = find_least_significant_set_bit(green_mask);
+	scan_bit_result blue_shift = find_least_significant_set_bit(blue_mask);
+	scan_bit_result alpha_shift = find_least_significant_set_bit(alpha_mask);
+	assert(red_shift.found && green_shift.found && blue_shift.found && alpha_shift.found);
+
+	uint32_t* source_dest = result.pixels;
+	for(int32_t i=0;
+		i<header->height*header->width;
+		++i)
+	{
+		*source_dest = (((*source_dest >> alpha_shift.index) & 0xFF) << 24) |
+						(((*source_dest >> red_shift.index) & 0xFF) << 16) |
+						(((*source_dest >> green_shift.index) & 0xFF) << 8) |
+						((*source_dest >> blue_shift.index) & 0xFF);
+		++source_dest;
+	}
+
+	return result;
+}
 
 extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 {
@@ -136,6 +226,8 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 
 	if(!memory->is_initialized)
 	{
+		game_state->test_bitmap = _debug_load_bmp(thread, memory->debug_read_entire_file, "test/test_background.bmp");
+
 		game_state->player_position.tile_x = 3;
 		game_state->player_position.tile_y = 3;
 		game_state->player_position.tile_z = 0;
@@ -414,6 +506,8 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	}
 
 	_draw_rectangle(render_output, 0.0f, 0.0f, (float)render_output.width, (float)render_output.height, 1.0f, 0.0f, 1.0f);
+	
+	_draw_bitmap(&render_output, &game_state->test_bitmap, 0.0f, 0.0f);
 
 	float screen_center_x = render_output.width*0.5f;
 	float screen_center_y = render_output.height*0.5f;
