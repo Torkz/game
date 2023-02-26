@@ -56,8 +56,8 @@ _draw_bitmap(render_output* output, loaded_bitmap* bitmap, float start_x, float 
 	int blit_width = bitmap->width;
 	int blit_height = bitmap->height;
 
-	int rounded_start_x = math::round_float_to_uint32(start_x);
-	int rounded_start_y = math::round_float_to_uint32(start_y);
+	int rounded_start_x = math::round_float_to_uint32(start_x) + bitmap->offset_x;
+	int rounded_start_y = math::round_float_to_uint32(start_y) + bitmap->offset_y;
 
 	uint32_t* source_row = bitmap->pixels + bitmap->width*(bitmap->height-1);
 
@@ -90,12 +90,12 @@ _draw_bitmap(render_output* output, loaded_bitmap* bitmap, float start_x, float 
 		return;
 	}
 
-	uint8_t* dest_row = (uint8_t*)output->memory + rounded_start_y*output->pitch;
-	for(int y=rounded_start_y;
+	uint8_t* dest_row = (uint8_t*)((uint32_t*)((uint8_t*)output->memory + rounded_start_y*output->pitch) + rounded_start_x);
+	for(int y=0;
 		y<blit_height;
 		++y)
 	{
-		for(int x=rounded_start_x;
+		for(int x=0;
 			x<blit_width;
 			++x)
 		{
@@ -145,31 +145,6 @@ struct bmp_header
 	uint32_t blue_mask;        /* Mask identifying bits of blue component */
 };
 #pragma pack(pop)
-
-struct least_significant_bit_result
-{
-	bool found;
-	uint32_t bit;
-};
-inline internal
-least_significant_bit_result _find_least_significant_bit(uint32_t value)
-{
-	least_significant_bit_result result = {0};
-
-	for(uint32_t i=0;
-		i<32;
-		++i)
-	{
-		if((value >> i) & 1)
-		{
-			result.found = true;
-			result.bit = i;
-			break;
-		}
-	}
-
-	return result;
-}
 
 internal
 loaded_bitmap _debug_load_bmp(thread_context* thread, debug_read_entire_file_def* read_entire_file, char* file_name)
@@ -227,6 +202,11 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	if(!memory->is_initialized)
 	{
 		game_state->test_bitmap = _debug_load_bmp(thread, memory->debug_read_entire_file, "test/test_background.bmp");
+		game_state->test_bitmap.offset_x = 0;
+		game_state->test_bitmap.offset_y = 0;
+		game_state->player_bitmap = _debug_load_bmp(thread, memory->debug_read_entire_file, "test/character01.bmp");
+		game_state->player_bitmap.offset_x = -32;
+		game_state->player_bitmap.offset_y = -59;
 
 		game_state->player_position.tile_x = 3;
 		game_state->player_position.tile_y = 3;
@@ -551,11 +531,13 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	float player_x = screen_center_x;
 	float player_y = screen_center_y;
 
-	float player_min_x = player_x - metres_to_pixels*player_width*0.5f;
-	float player_max_x = player_x + metres_to_pixels*player_width*0.5f;
-	float player_min_y = player_y - metres_to_pixels*player_height;
-	float player_max_y = player_y;
-	_draw_rectangle(render_output, player_min_x, player_min_y, player_max_x, player_max_y, 0.9f, 0.1f, 0.2f);
+	_draw_bitmap(&render_output, &game_state->player_bitmap, player_x, player_y);
+
+	// float player_min_x = player_x - metres_to_pixels*player_width*0.5f;
+	// float player_max_x = player_x + metres_to_pixels*player_width*0.5f;
+	// float player_min_y = player_y - metres_to_pixels*player_height;
+	// float player_max_y = player_y;
+	// _draw_rectangle(render_output, player_min_x, player_min_y, player_max_x, player_max_y, 0.9f, 0.1f, 0.2f);
 }
 
 extern "C" GAME_FILL_AUDIO_OUTPUT(fill_audio_output)

@@ -162,16 +162,19 @@ struct loaded_bitmap
 
 	int32_t width;
 	int32_t height;
+
+	int32_t offset_x;
+	int32_t offset_y;
 };
 
 struct game_state
 {
 	memory_space world_space;
-
 	world* world;
-	tile_map_position player_position;
 
-	uint32_t* pixels;
+	tile_map_position player_position;
+	loaded_bitmap player_bitmap;
+
 	loaded_bitmap test_bitmap;
 };
 
