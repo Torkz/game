@@ -12,7 +12,7 @@ enum buttons
 struct button_state
 {
 	bool was_down;
-	uint8_t half_transitions;
+	uint8 half_transitions;
 };
 
 struct input_state
