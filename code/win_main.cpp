@@ -11,7 +11,7 @@ global_variable IXAudio2SourceVoice* _xaudio2_source_voice = nullptr;
 global_variable UINT32 _xaudio2_audio_data_buffer_size;
 global_variable BYTE* _xaudio2_audio_data;
 
-global_variable int64_t _performance_counter_frequency;
+global_variable int64 _performance_counter_frequency;
 
 int WinMain(
 	HINSTANCE instance,
@@ -65,7 +65,7 @@ int WinMain(
 	//todo(staffan): get this from windows.
 	int monitor_update_frequency = 60;
 	int game_update_frequency = monitor_update_frequency/2;
-	float target_dt = 1.0f/(float)game_update_frequency;
+	float32 target_dt = 1.0f/(float32)game_update_frequency;
 
 	LARGE_INTEGER performance_frequency_result;
 	QueryPerformanceFrequency(&performance_frequency_result);
@@ -122,17 +122,17 @@ int WinMain(
 	WORD bits_per_sample = 16;
 	DWORD sample_rate = 48000;
 	//todo(staffan): figure out audio timings with framerate.
-	float buffer_duration = 1.0f/60.0f; //seconds
-	// float buffer_duration = target_dt; //seconds
+	float32 buffer_duration = 1.0f/60.0f; //seconds
+	// float32 buffer_duration = target_dt; //seconds
 	_initialize_xaudio2(num_channels, bits_per_sample, sample_rate, buffer_duration);
 
-	uint32_t num_samples_per_buffer = (_xaudio2_audio_data_buffer_size*8)/(bits_per_sample*2);
+	uint32 num_samples_per_buffer = (_xaudio2_audio_data_buffer_size*8)/(bits_per_sample*2);
 
 	int audio_buffer_index = 0;
 	BYTE audio_buffer[((2*16)/8)*48000*2]; //todo(staffan): revisit size.
 
 #if GAME_INTERNAL
-	LPVOID address_location = (LPVOID)terabytes((uint64_t)2);
+	LPVOID address_location = (LPVOID)terabytes((uint64)2);
 #else
 	LPVOID address_location = 0;
 #endif
@@ -141,8 +141,8 @@ int WinMain(
 	memory.permanent_storage_size = megabytes(64);
 	memory.transient_storage_size = gigabytes(1);
 
-	uint64_t audio_memory_size = _xaudio2_audio_data_buffer_size*XAUDIO2_NUM_BUFFERS;
-	uint64_t all_memory_size = audio_memory_size+memory.permanent_storage_size+memory.transient_storage_size;
+	uint64 audio_memory_size = _xaudio2_audio_data_buffer_size*XAUDIO2_NUM_BUFFERS;
+	uint64 all_memory_size = audio_memory_size+memory.permanent_storage_size+memory.transient_storage_size;
 	void* allocated_memory = VirtualAlloc(address_location, all_memory_size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 
 	if(allocated_memory == 0)
@@ -153,8 +153,8 @@ int WinMain(
 	}
 
 	_xaudio2_audio_data = (BYTE*)allocated_memory;
-	memory.permanent_storage = (uint8_t*)allocated_memory + audio_memory_size;
-	memory.transient_storage = (uint8_t*)allocated_memory + audio_memory_size + memory.permanent_storage_size;
+	memory.permanent_storage = (uint8*)allocated_memory + audio_memory_size;
+	memory.transient_storage = (uint8*)allocated_memory + audio_memory_size + memory.permanent_storage_size;
 
 #if GAME_INTERNAL
 	memory.debug_read_entire_file = &debug_read_entire_file;
@@ -176,12 +176,12 @@ int WinMain(
 	game::game_time game_time = {0};
 	game::input_state last_frame_input = {0};
 #if 0
-	float time_since_last_print = 0.0f;
+	float32 time_since_last_print = 0.0f;
 #endif
 
 	LARGE_INTEGER last_time = _windows_time();
 #if 1
-	int64_t last_cycle_count = __rdtsc();
+	int64 last_cycle_count = __rdtsc();
 #endif
 	while (_running)
 	{
@@ -214,13 +214,13 @@ int WinMain(
 			int num_audio_buffers_to_fill = XAUDIO2_NUM_BUFFERS-voice_state.BuffersQueued;
 
 			game::audio_output game_audio_output = {};
-			game_audio_output.memory = (uint16_t*)audio_buffer;
+			game_audio_output.memory = (uint16*)audio_buffer;
 			game_audio_output.sample_rate = sample_rate;
 			game_audio_output.num_samples_to_fill = num_samples_per_buffer*num_audio_buffers_to_fill;
 
 			game_code.fill_audio_output(&thread, &memory, game_audio_output);
 
-			uint16_t* input_sample = (uint16_t*)audio_buffer;
+			uint16* input_sample = (uint16*)audio_buffer;
 			for(
 				int i = 0;
 				i < num_audio_buffers_to_fill;
@@ -232,7 +232,7 @@ int WinMain(
 				{
 					printed = true;
 
-					float time_since_last_fill = game_time.t - time_since_last_print;
+					float32 time_since_last_fill = game_time.t - time_since_last_print;
 					time_since_last_print = game_time.t;
 
 					char buffer[256];
@@ -243,9 +243,9 @@ int WinMain(
 
 				BYTE* audio_data_pointer = _xaudio2_audio_data + (_xaudio2_audio_data_buffer_size*audio_buffer_index);
 				//todo(staffan): make this faster.
-				uint16_t* output_sample = (uint16_t*)audio_data_pointer;
+				uint16* output_sample = (uint16*)audio_data_pointer;
 				for(
-					uint32_t sample_index = 0;
+					uint32 sample_index = 0;
 					sample_index < num_samples_per_buffer;
 					++sample_index
 				)
@@ -265,7 +265,7 @@ int WinMain(
 		}
 
 		LARGE_INTEGER work_time = _windows_time();
-		float work_time_elapsed = _time_elapsed(last_time, work_time);
+		float32 work_time_elapsed = _time_elapsed(last_time, work_time);
 		if (work_time_elapsed < target_dt)
 		{
 			// Sleep((int)((target_dt-work_time_elapsed)*1000.0f));
@@ -281,13 +281,13 @@ int WinMain(
 
 		LARGE_INTEGER end_time = _windows_time();
 #if 0
-		int64_t end_cycle_count = __rdtsc();
-		int64_t cycles_elapsed = end_cycle_count - last_cycle_count;
+		int64 end_cycle_count = __rdtsc();
+		int64 cycles_elapsed = end_cycle_count - last_cycle_count;
 		last_cycle_count = end_cycle_count;
 
-		float ms_elapsed = 1000.0f*game_time.dt;
-		float fps = (float)((float)_performance_counter_frequency / (float)(end_time.QuadPart - last_time.QuadPart));
-		float mcpf = (float)((float)cycles_elapsed / (1000.0f * 1000.0f));
+		float32 ms_elapsed = 1000.0f*game_time.dt;
+		float32 fps = (float32)((float32)_performance_counter_frequency / (float32)(end_time.QuadPart - last_time.QuadPart));
+		float32 mcpf = (float32)((float32)cycles_elapsed / (1000.0f * 1000.0f));
 
 		char buffer[256];
 		snprintf(buffer, 256, "ms/frame: %fms fps:%f mc:%f dt:%.5f t:%.2f\n", ms_elapsed, fps, mcpf, game_time.dt, game_time.t);
@@ -398,12 +398,12 @@ inline internal LARGE_INTEGER _windows_time()
 	return counter;
 }
 
-inline internal float _time_elapsed(LARGE_INTEGER begin, LARGE_INTEGER end)
+inline internal float32 _time_elapsed(LARGE_INTEGER begin, LARGE_INTEGER end)
 {
-	return (float)(end.QuadPart - begin.QuadPart) / (float)_performance_counter_frequency;
+	return (float32)(end.QuadPart - begin.QuadPart) / (float32)_performance_counter_frequency;
 }
 
-inline internal game::button_state* _button_state_from_key_code(game::input_state* game_input, uint32_t key_code)
+inline internal game::button_state* _button_state_from_key_code(game::input_state* game_input, uint32 key_code)
 {
 	if (key_code == BUTTON_A)
 	{
@@ -497,7 +497,7 @@ internal void _process_window_messages(HWND window, game::input_state* current_i
 			game::button_state* this_frame = &current_input->buttons[i];
 			game::button_state* last_frame = &previous_input->buttons[i];
 
-			this_frame->was_down = (last_frame->half_transitions%2 == (uint8_t)!last_frame->was_down) ? true : false;
+			this_frame->was_down = (last_frame->half_transitions%2 == (uint8)!last_frame->was_down) ? true : false;
 			this_frame->half_transitions = 0;
 		}
 
@@ -516,7 +516,7 @@ internal void _process_window_messages(HWND window, game::input_state* current_i
 				case WM_SYSKEYDOWN:
 				case WM_SYSKEYUP:
 				{
-					uint32_t key_code = (uint32_t)message.wParam;
+					uint32 key_code = (uint32)message.wParam;
 
 					game::button_state* button_state = _button_state_from_key_code(current_input, key_code);
 					if (button_state)
@@ -530,7 +530,7 @@ internal void _process_window_messages(HWND window, game::input_state* current_i
 						}
 					}
 
-					uint32_t alt_key_was_down = (message.lParam & (1 << 29));
+					uint32 alt_key_was_down = (message.lParam & (1 << 29));
 					if (key_code == VK_F4 && alt_key_was_down)
 					{
 						_running = false;
@@ -626,7 +626,7 @@ internal void _update_window(HDC device_context, RECT* window_rect, win_bitmap_b
 	);
 }
 
-internal void _initialize_xaudio2(WORD num_channels, WORD bits_per_sample, DWORD sample_rate, float buffer_duration)
+internal void _initialize_xaudio2(WORD num_channels, WORD bits_per_sample, DWORD sample_rate, float32 buffer_duration)
 {
 	HRESULT result;
 	if ( FAILED(result = XAudio2Create( &_xaudio2_engine, 0, XAUDIO2_DEFAULT_PROCESSOR)))
@@ -674,7 +674,7 @@ internal void _initialize_xaudio2(WORD num_channels, WORD bits_per_sample, DWORD
 		return;
 	}
 
-	_xaudio2_audio_data_buffer_size = (uint32_t)((float)wave_format.nAvgBytesPerSec*buffer_duration);
+	_xaudio2_audio_data_buffer_size = (uint32)((float32)wave_format.nAvgBytesPerSec*buffer_duration);
 }
 
 internal void _post_error(const char* function)
@@ -710,10 +710,10 @@ internal void _post_error(const char* function)
 }
 
 inline internal
-uint32_t safe_truncate_uint64(uint64_t value)
+uint32 safe_truncate_uint64(uint64 value)
 {
 	assert(value <= 0xFFFFFFFF);
-	uint32_t result = (uint32_t)value;
+	uint32 result = (uint32)value;
 	return result;
 }
 
@@ -742,7 +742,7 @@ DEBUG_READ_ENTIRE_FILE(debug_read_entire_file)
 		return result;
 	}
 
-	uint32_t file_size_32 = safe_truncate_uint64(file_size.QuadPart);
+	uint32 file_size_32 = safe_truncate_uint64(file_size.QuadPart);
 	void* content = VirtualAlloc(0, file_size_32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 	if(content == 0)
 	{

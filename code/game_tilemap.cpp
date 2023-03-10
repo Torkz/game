@@ -5,7 +5,7 @@ namespace tiles
 {
 
 internal inline
-chunk_position _tile_chunk_position_from_tile_coordinates(tile_map* tile_map, uint32_t tile_x, uint32_t tile_y, uint32_t tile_z)
+chunk_position _tile_chunk_position_from_tile_coordinates(tile_map* tile_map, uint32 tile_x, uint32 tile_y, uint32 tile_z)
 {
 	chunk_position result;
 
@@ -34,9 +34,9 @@ internal inline chunk* _tile_chunk_from_tile_chunk_position(tile_map* tile_map, 
 }
 
 internal inline
-uint32_t _tile_value_from_tile_chunk_position(tile_map* tile_map, chunk_position chunk_position)
+uint32 _tile_value_from_tile_chunk_position(tile_map* tile_map, chunk_position chunk_position)
 {
-	uint32_t result = 0;
+	uint32 result = 0;
 	if(
 		chunk_position.chunk_x < tile_map->num_chunks_x &&
 		chunk_position.chunk_y < tile_map->num_chunks_y &&
@@ -56,7 +56,7 @@ internal inline
 bool position_is_valid(tile_map* tile_map, tile_map_position position)
 {
 	chunk_position chunk_position = _tile_chunk_position_from_world_position(tile_map, position);
-	uint32_t tile_value = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
+	uint32 tile_value = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
 
 	if(
 		tile_value == 1 ||
@@ -70,32 +70,32 @@ bool position_is_valid(tile_map* tile_map, tile_map_position position)
 }
 
 internal inline
-uint32_t tile_value(tile_map* tile_map, uint32_t tile_x, uint32_t tile_y, uint32_t tile_z)
+uint32 tile_value(tile_map* tile_map, uint32 tile_x, uint32 tile_y, uint32 tile_z)
 {
-	uint32_t result;
+	uint32 result;
 	chunk_position chunk_position = _tile_chunk_position_from_tile_coordinates(tile_map, tile_x, tile_y, tile_z);
 	result = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
 	return result;
 }
 
 internal inline
-uint32_t tile_value(tile_map* tile_map, tile_map_position position)
+uint32 tile_value(tile_map* tile_map, tile_map_position position)
 {
-	uint32_t result = tile_value(tile_map, position.tile_x, position.tile_y, position.tile_z);
+	uint32 result = tile_value(tile_map, position.tile_x, position.tile_y, position.tile_z);
 	return result;
 }
 
 internal inline
-void set_tile_value(tile_map* tile_map, uint32_t tile_x, uint32_t tile_y, uint32_t tile_z, uint32_t tile_value)
+void set_tile_value(tile_map* tile_map, uint32 tile_x, uint32 tile_y, uint32 tile_z, uint32 tile_value)
 {
 	chunk_position chunk_position = _tile_chunk_position_from_tile_coordinates(tile_map, tile_x, tile_y, tile_z);
 	chunk* chunk = _tile_chunk_from_tile_chunk_position(tile_map, chunk_position);
 
 	if(!chunk->tiles)
 	{
-		chunk->tiles = _push_array(tile_map->memory_space, uint32_t, tile_map->chunk_dimension*tile_map->chunk_dimension);
+		chunk->tiles = _push_array(tile_map->memory_space, uint32, tile_map->chunk_dimension*tile_map->chunk_dimension);
 
-		for(uint32_t i = 0;
+		for(uint32 i = 0;
 			i < tile_map->chunk_dimension*tile_map->chunk_dimension;
 			++i)
 		{
@@ -109,9 +109,9 @@ void set_tile_value(tile_map* tile_map, uint32_t tile_x, uint32_t tile_y, uint32
 // todo(staffan): figure it out man.
 // tile_map_position stuff might be better placed somewhere else than tiles namespace.
 internal inline
-void _recanonicalize_coordinate(tile_map* tile_map, uint32_t* tile, float* tile_relative)
+void _recanonicalize_coordinate(tile_map* tile_map, uint32* tile, float32* tile_relative)
 {
-	int32_t tile_offset = math::round_float_to_int(*tile_relative / tile_map->tile_side_in_metres);
+	int32 tile_offset = math::round_float_to_int(*tile_relative / tile_map->tile_side_in_metres);
 	*tile += tile_offset;
 	*tile_relative -= tile_map->tile_side_in_metres*tile_offset;
 
@@ -124,8 +124,8 @@ tile_map_position recanonicalize_tile_map_position(tile_map* tile_map, tile_map_
 {
 	tile_map_position result = position;
 
-	_recanonicalize_coordinate(tile_map, &result.tile_x, &result.tile_relative_x);
-	_recanonicalize_coordinate(tile_map, &result.tile_y, &result.tile_relative_y);
+	_recanonicalize_coordinate(tile_map, &result.tile_x, &result.tile_relative.x);
+	_recanonicalize_coordinate(tile_map, &result.tile_y, &result.tile_relative.y);
 
 	return result;
 }

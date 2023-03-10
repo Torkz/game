@@ -1,5 +1,3 @@
-#include <stdint.h> //todo(staffan): remove this dependency?
-
 //
 //	Compilers
 //
@@ -29,6 +27,16 @@
 //	/Compilers
 //
 
+typedef signed char        	int8;
+typedef short              	int16;
+typedef int                	int32;
+typedef long long          	int64;
+typedef unsigned char      	uint8;
+typedef unsigned short     	uint16;
+typedef unsigned int       	uint32;
+typedef unsigned long long 	uint64;
+typedef float				float32;
+typedef double				float64;
 
 #define global_variable static
 #define internal static
@@ -40,7 +48,7 @@
 #define memory_index size_t
 
 #if GAME_SLOWMODE
-#define assert(expression) {if(!(expression)){*(uint8_t*)0 = 0;}}
+#define assert(expression) {if(!(expression)){*(uint8*)0 = 0;}}
 #else
 #define assert(expression) {};
 #endif
@@ -50,14 +58,14 @@
 #define gigabytes(value) (megabytes(value)*1024)
 #define terabytes(value) (gigabytes(value)*1024)
 
-
+#include "math.h"
 #include "game_input.h"
 
 namespace game
 {
 struct memory_space
 {
-	uint8_t* base;
+	uint8* base;
 	memory_index max_memory;
 	memory_index used_memory;
 };
@@ -127,15 +135,15 @@ struct render_output
 
 struct audio_output
 {
-	uint16_t* memory;
+	uint16* memory;
 	int sample_rate;
 	int num_samples_to_fill;
 };
 
 struct game_time
 {
-	float t;
-	float dt;
+	float32 t;
+	float32 dt;
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(thread_context* thread, game_memory* memory, game_time time, input_state input, render_output& render_output)
@@ -158,13 +166,13 @@ struct world
 
 struct loaded_bitmap
 {
-	uint32_t* pixels;
+	uint32* pixels;
 
-	int32_t width;
-	int32_t height;
+	int32 width;
+	int32 height;
 
-	int32_t offset_x;
-	int32_t offset_y;
+	int32 offset_x;
+	int32 offset_y;
 };
 
 struct game_state
@@ -172,11 +180,11 @@ struct game_state
 	memory_space world_space;
 	world* world;
 
+	math::vector2 player_velocity;
 	tile_map_position player_position;
 	loaded_bitmap player_bitmap;
 
 	loaded_bitmap test_bitmap;
 };
 
-//forward declared "private" functions
-}
+} //namespace game
