@@ -41,6 +41,7 @@ typedef double				float64;
 #define global_variable static
 #define internal static
 #define local_persist static
+#define const_exp static
 
 #define PI 3.14159265359f
 #define TAU PI*2.0f
@@ -57,6 +58,15 @@ typedef double				float64;
 #define megabytes(value) (kilobytes(value)*1024)
 #define gigabytes(value) (megabytes(value)*1024)
 #define terabytes(value) (gigabytes(value)*1024)
+
+// #define array_size(array, type) sizeof(array)/sizeof(type);
+
+template <typename T>
+internal inline
+uint32 array_size(T array)
+{
+	return sizeof(array)/sizeof(T);
+}
 
 #include "math.h"
 #include "game_input.h"

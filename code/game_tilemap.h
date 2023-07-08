@@ -43,11 +43,13 @@ struct tile_map_position
 	uint32 tile_y;
 	uint32 tile_z;
 
-#if 0
-	float32 tile_relative_x;
-	float32 tile_relative_y;
-#else
 	math::vector2 tile_relative;
-#endif
 };
+
+struct tile_map_position_difference
+{
+	math::vector2 xy;
+	int32 z;
+};
+
 } //namespace game

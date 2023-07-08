@@ -53,20 +53,37 @@ uint32 _tile_value_from_tile_chunk_position(tile_map* tile_map, chunk_position c
 }
 
 internal inline
-bool position_is_valid(tile_map* tile_map, tile_map_position position)
+bool tile_value_is_valid(uint32 tile_value)
 {
-	chunk_position chunk_position = _tile_chunk_position_from_world_position(tile_map, position);
-	uint32 tile_value = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
-
+	bool result;
 	if(
 		tile_value == 1 ||
 		tile_value == 3 ||
 		tile_value == 4)
 	{
-		return true;
+		result = true;
 	}
+	else
+	{
+		result = false;
+	}
+	return result;
+}
 
-	return false;
+internal inline
+bool position_is_valid(tile_map* tile_map, tile_map_position position)
+{
+	chunk_position chunk_position = _tile_chunk_position_from_world_position(tile_map, position);
+	uint32 tile_value = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
+	return tile_value_is_valid(tile_value);
+}
+
+internal inline
+bool position_is_valid(tile_map* tile_map, uint32 tile_x, uint32 tile_y, uint32 tile_z)
+{
+	chunk_position chunk_position = _tile_chunk_position_from_tile_coordinates(tile_map, tile_x, tile_y, tile_z);
+	uint32 tile_value = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
+	return tile_value_is_valid(tile_value);
 }
 
 internal inline
@@ -111,12 +128,17 @@ void set_tile_value(tile_map* tile_map, uint32 tile_x, uint32 tile_y, uint32 til
 internal inline
 void _recanonicalize_coordinate(tile_map* tile_map, uint32* tile, float32* tile_relative)
 {
+	#if GAME_SLOWMODE
+	uint32 tile_prev = *tile;
+	float32 tile_rel_prev = *tile_relative;
+	#endif
+
 	int32 tile_offset = math::round_float_to_int(*tile_relative / tile_map->tile_side_in_metres);
 	*tile += tile_offset;
 	*tile_relative -= tile_map->tile_side_in_metres*tile_offset;
 
 	assert(*tile_relative >= -tile_map->tile_side_in_metres*0.5f);
-	assert(*tile_relative < tile_map->tile_side_in_metres*0.5f);
+	assert(*tile_relative <= tile_map->tile_side_in_metres*0.5f);
 }
 
 internal inline
@@ -133,7 +155,7 @@ tile_map_position recanonicalize_tile_map_position(tile_map* tile_map, tile_map_
 internal inline
 bool are_on_same_tile(tile_map_position a, tile_map_position b)
 {
-	bool result = false;
+	bool result;
 	if(
 		(a.tile_x == b.tile_x) &&
 		(a.tile_y == b.tile_y) &&
@@ -142,6 +164,38 @@ bool are_on_same_tile(tile_map_position a, tile_map_position b)
 	{
 		result = true;
 	}
+	else
+	{
+		result = false;
+	}
+	return result;
+}
+
+internal inline
+tile_map_position_difference difference(tile_map* tile_map, tile_map_position a, tile_map_position b)
+{
+	tile_map_position_difference result;
+	result.xy.x = ((float32)b.tile_x*tile_map->tile_side_in_metres + b.tile_relative.x)
+					-((float32)a.tile_x*tile_map->tile_side_in_metres + a.tile_relative.x);
+	result.xy.y = ((float32)b.tile_y*tile_map->tile_side_in_metres + b.tile_relative.y)
+					-((float32)a.tile_y*tile_map->tile_side_in_metres + a.tile_relative.y);
+	result.z = b.tile_z-a.tile_z;
+	return result;
+}
+
+struct tile_edge
+{
+	math::vector2 closest_position;
+	math::vector2 normal;
+};
+internal inline
+tile_edge closest_tile_edge(tile_map_position tile_position, tile_map_position compare_position)
+{
+	tile_edge result;
+	
+
+	
+
 	return result;
 }
 
