@@ -29,6 +29,12 @@ operator-(vector2 v1, vector2 v2)\
 	return result;
 };
 
+inline void
+operator-=(vector2& v1, vector2 v2)
+{
+	v1 = v1 - v2;
+};
+
 inline vector2
 operator+(vector2 v1, vector2 v2)\
 {
@@ -45,11 +51,34 @@ operator+=(vector2& v1, vector2 v2)\
 };
 
 inline vector2
+operator*(vector2 v1, vector2 v2)\
+{
+	vector2 result;
+	result.x = v1.x*v2.x;
+	result.y = v1.y*v2.y;
+	return result;
+};
+
+inline void
+operator*=(vector2& v1, vector2 v2)
+{
+	v1 = v1*v2;
+};
+
+inline vector2
 operator*(vector2 v, float32 scale)\
 {
 	vector2 result;
 	result.x = v.x*scale;
 	result.y = v.y*scale;
+	return result;
+};
+
+inline vector2
+operator*(float32 scale, vector2 v)\
+{
+	vector2 result;
+	result = v*scale;
 	return result;
 };
 
@@ -97,6 +126,22 @@ dot(vector2 v1, vector2 v2)
 {
 	float32 result;
 	result = v1.x*v2.x + v1.y*v2.y;
+	return result;
+}
+
+inline float32
+cross(vector2 v1, vector2 v2)
+{
+	float32 result;
+	result = v1.x*v2.y - v1.y*v2.x;
+	return result;
+}
+
+inline vector2
+lerp(vector2 v1, vector2 v2, float32 t)
+{
+	vector2 result;
+	result = v1 + (v2-v1)*t;
 	return result;
 }
 

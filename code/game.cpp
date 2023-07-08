@@ -6,7 +6,7 @@
 namespace game
 {
 
-internal void _draw_rectangle(render_output& output, math::vector2 min, math::vector2 max, float32 red, float32 green, float32 blue)
+internal void _draw_rectangle(render_output* output, math::vector2 min, math::vector2 max, float32 red, float32 green, float32 blue)
 {
 	int min_x_rounded = math::round_float_to_uint32(min.x);
 	int min_y_rounded = math::round_float_to_uint32(min.y);
@@ -23,14 +23,14 @@ internal void _draw_rectangle(render_output& output, math::vector2 min, math::ve
 		min_y_rounded = 0;
 	}
 
-	if(max_x_rounded > output.width)
+	if(max_x_rounded > output->width)
 	{
-		max_x_rounded = output.width;
+		max_x_rounded = output->width;
 	}
 
-	if(max_y_rounded > output.height)
+	if(max_y_rounded > output->height)
 	{
-		max_y_rounded = output.height;
+		max_y_rounded = output->height;
 	}
 
 	uint32 color =
@@ -38,14 +38,14 @@ internal void _draw_rectangle(render_output& output, math::vector2 min, math::ve
 		(math::round_float_to_uint32(green*255.0f)<<8) |
 		math::round_float_to_uint32(blue*255.0f);
 
-	uint8* row = (uint8*)output.memory+(min_y_rounded*output.pitch);
+	uint8* row = (uint8*)output->memory+(min_y_rounded*output->pitch);
 	for(int y=min_y_rounded; y<max_y_rounded; ++y)
 	{
 		for(int x=min_x_rounded; x<max_x_rounded; ++x)
 		{		
 			*((uint32*)row+x) = color;
 		}
-		row += output.pitch;
+		row += output->pitch;
 	}
 }
 
@@ -197,6 +197,7 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 
 	float32 player_height = 1.8f;
 	float32 player_width = player_height*0.75f;
+	float32 player_collision_height = player_height*0.1f;
 
 	if(!memory->is_initialized)
 	{
@@ -209,8 +210,6 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 
 		game_state->player_position.tile_x = 3;
 		game_state->player_position.tile_y = 3;
-		game_state->player_position.tile_z = 0;
-		game_state->player_position.tile_relative = {0.0f, 0.0f};
 
 		_initialize_memory_space(&game_state->world_space,
 			(uint8*)memory->permanent_storage+sizeof(game::game_state),
@@ -490,46 +489,107 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	float32 speed_scale = input::button_held(SPACEBAR) ? 5.0f : 1.0f;
 	math::vector2 delta_this_frame = wanted_velocity*time.dt*speed_scale;
 
+	math::vector2 movement = delta_this_frame;
+	math::vector2 initial_direction = normalize(movement);
+	math::vector2 current_direction = initial_direction;
+	float32 movement_length = length(movement);
+	bool found_any_collision = false;
+
 	tile_map_position new_position = game_state->player_position;
-	new_position.tile_relative += delta_this_frame;
-	new_position = tiles::recanonicalize_tile_map_position(tile_map, new_position);
+	math::vector2 actual_velocity = wanted_velocity;
 
-	tile_map_position left_position = new_position;
-	left_position.tile_relative.x -= player_width*0.5f;
-	left_position = tiles::recanonicalize_tile_map_position(tile_map, left_position);
-
-	tile_map_position right_position = new_position;
-	right_position.tile_relative.x += player_width*0.5f;
-	right_position = tiles::recanonicalize_tile_map_position(tile_map, right_position);
-
-	bool position_is_valid = tiles::position_is_valid(tile_map, new_position)
-							&& tiles::position_is_valid(tile_map, left_position)
-							&& tiles::position_is_valid(tile_map, right_position);
-
-	if(position_is_valid)
+	int iterations = 0;
+	while(movement_length > 0.0001f && dot(current_direction, initial_direction) > 0.0f)
 	{
-		if(!tiles::are_on_same_tile(game_state->player_position, new_position))
+		iterations++;
+
+		math::vector2 player_half_extents = {player_width*0.5f, player_collision_height*0.5f};
+		tile_map_position player_collision_box_pos = new_position;
+		player_collision_box_pos.tile_relative.y += player_half_extents.y;
+		player_collision_box_pos = tiles::recanonicalize_tile_map_position(tile_map, player_collision_box_pos);
+
+		math::vector2 collision_shape_half_extents = {tile_map->tile_side_in_metres*0.5f, tile_map->tile_side_in_metres*0.5f};
+		math::shape collision_shapes[8];
+		uint32 num_collision_shapes = 0;
+		for(int32 y = -1; y<2; ++y)
 		{
-			uint32 tile_value = tiles::tile_value(tile_map, new_position);
-			if(tile_value == 3)
+			for(int32 x = -1; x<2; ++x)
 			{
-				++new_position.tile_z;
-			}
-			else if(tile_value == 4)
-			{
-				--new_position.tile_z;
+				if(x == 0 && y==0)
+				{
+					continue;
+				}
+
+				tile_map_position tile_pos;
+				tile_pos.tile_x = new_position.tile_x+x;
+				tile_pos.tile_y = new_position.tile_y+y;
+				tile_pos.tile_z = new_position.tile_z;
+				tile_pos.tile_relative = {0.0f, 0.0f};
+				if(tiles::position_is_valid(tile_map, tile_pos) == false)
+				{
+					tile_map_position_difference diff = tiles::difference(tile_map, player_collision_box_pos, tile_pos);
+					collision_shapes[num_collision_shapes++] = aabb_shape(diff.xy, collision_shape_half_extents);
+				}
 			}
 		}
-		game_state->player_position = new_position;
-		game_state->player_velocity = wanted_velocity;
+
+		math::vector2 sweep_from = {0.0f, 0.0f};
+		math::aabb_linear_sweep_result sr;
+		sr = aabb_linear_sweep(sweep_from, movement, player_half_extents, collision_shapes, num_collision_shapes);
+
+		if(sr.num_sweep_results > 0)
+		{
+			math::sweep_result closest_collision = sr.sweep_results[0];
+			float32 free_distance = math::max(closest_collision.distance_on_sweep_vector-0.001f, 0.0f); //skin?
+			math::vector2 free_movement = current_direction * free_distance;
+			new_position.tile_relative += free_movement;
+			new_position = tiles::recanonicalize_tile_map_position(tile_map, new_position);
+
+			float32 dot = math::dot(movement, closest_collision.normal);
+			math::vector2 reflection_vector = closest_collision.normal*dot;
+
+			movement -= reflection_vector;
+			current_direction = normalize(movement);
+
+			movement_length = math::max(length(movement) - free_distance, 0.0f);
+			actual_velocity = movement/time.dt; //todo(staffan): this might be wrong to do here.
+		}
+		else
+		{
+			new_position.tile_relative += movement;
+			new_position = tiles::recanonicalize_tile_map_position(tile_map, new_position);
+			break;
+		}
 	}
-	else
+
+	if(!tiles::are_on_same_tile(game_state->player_position, new_position))
 	{
+		uint32 tile_value = tiles::tile_value(tile_map, new_position);
+		if(tile_value == 3)
+		{
+			++new_position.tile_z;
+		}
+		else if(tile_value == 4)
+		{
+			--new_position.tile_z;
+		}
+	}
+	game_state->player_position = new_position;
+	game_state->player_velocity = actual_velocity;
+
+	if(input::button_held(MOUSE_LEFT))
+	{
+		int asd = 0;
+
+		game_state->player_position.tile_x = 3;
+		game_state->player_position.tile_y = 3;
+		game_state->player_position.tile_z = 0;
+		game_state->player_position.tile_relative = {0.0f, 0.0f};
 		game_state->player_velocity = {0.0f, 0.0f};
 	}
 
 	math::vector2 top_left = {0.0f, 0.0f};
-	_draw_rectangle(render_output, {0.0f, 0.0f}, {(float32)render_output.width, (float32)render_output.height}, 1.0f, 0.0f, 1.0f);
+	_draw_rectangle(&render_output, {0.0f, 0.0f}, {(float32)render_output.width, (float32)render_output.height}, 1.0f, 0.0f, 1.0f);
 	
 	_draw_bitmap(&render_output, &game_state->test_bitmap, {0.0f, 0.0f});
 
@@ -573,7 +633,7 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 				};
 				math::vector2 min = center_offset_tile_position - tile_side_half_extents_in_pixels;
 				math::vector2 max = center_offset_tile_position + tile_side_half_extents_in_pixels;
-				_draw_rectangle(render_output, min, max, gray, gray, gray);
+				_draw_rectangle(&render_output, min, max, gray, gray, gray);
 			}
 		}
 	}
@@ -581,12 +641,26 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	math::vector2 player_position = screen_center;
 
 	_draw_bitmap(&render_output, &game_state->player_bitmap, player_position);
+	// {//player collision
+	// 	math::vector2 min = player_position + player_collision_min*metres_to_pixels;
+	// 	math::vector2 max = player_position + player_collision_max*metres_to_pixels;
+	// 	_draw_rectangle(&render_output, min, max, 0.8f, 0.8f, 0.8f);
 
-	// float32 player_min_x = player_x - metres_to_pixels*player_width*0.5f;
-	// float32 player_max_x = player_x + metres_to_pixels*player_width*0.5f;
-	// float32 player_min_y = player_y - metres_to_pixels*player_height;
-	// float32 player_max_y = player_y;
-	// _draw_rectangle(render_output, player_min_x, player_min_y, player_max_x, player_max_y, 0.9f, 0.1f, 0.2f);
+	// 	if(collision)
+	// 	{
+	// 		math::vector2 overlap_half_extents = (overlap_area.max - overlap_area.min)*0.5f;
+	// 		math::vector2 overlap_area_center_position = overlap_area.min + overlap_half_extents;
+	// 		math::vector2 overlap_area_screen_position;
+	// 		overlap_area_screen_position.x = screen_center.x + overlap_area_center_position.x*metres_to_pixels;
+	// 		overlap_area_screen_position.y = screen_center.y - overlap_area_center_position.y*metres_to_pixels;
+	// 		math::vector2 overlap_min = overlap_area_screen_position - overlap_half_extents*metres_to_pixels;
+	// 		math::vector2 overlap_max = overlap_area_screen_position + overlap_half_extents*metres_to_pixels;
+	// 		float32 r = 0.8f;
+	// 		float32 g = 0.8f;
+	// 		float32 b = 0.1f;
+	// 		_draw_rectangle(&render_output, overlap_min, overlap_max, r, g, b);
+	// 	}
+	// }//player collision
 }
 
 extern "C" GAME_FILL_AUDIO_OUTPUT(fill_audio_output)
