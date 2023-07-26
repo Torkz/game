@@ -13,6 +13,10 @@ global_variable BYTE* _xaudio2_audio_data;
 
 global_variable int64 _performance_counter_frequency;
 
+#if GAME_INTERNAL
+global_variable jmp_buf _forced_playback_jmp_buf;
+#endif
+
 int WinMain(
 	HINSTANCE instance,
 	HINSTANCE previous_instance,
@@ -117,6 +121,8 @@ int WinMain(
 		return 0;
 	}
 
+	win_state win_state;
+
 	bool stereo = true;
 	WORD num_channels = stereo ? 2 : 1;
 	WORD bits_per_sample = 16;
@@ -138,11 +144,29 @@ int WinMain(
 #endif
 
 	game::game_memory memory;
-	memory.permanent_storage_size = megabytes(64);
+	memory.permanent_storage_size = megabytes(32);
 	memory.transient_storage_size = gigabytes(1);
 
 	uint64 audio_memory_size = _xaudio2_audio_data_buffer_size*XAUDIO2_NUM_BUFFERS;
 	uint64 all_memory_size = audio_memory_size+memory.permanent_storage_size+memory.transient_storage_size;
+
+#if GAME_INTERNAL
+	win_playback_state playback_state;
+	playback_state.num_recording_frames = 60;
+	playback_state.num_recorded_frames = 0;
+	playback_state.frame_recording_index = 0;
+	playback_state.playback = false;
+	playback_state.stopping_playback = false;
+	playback_state.playback_started_frame_recording_index = 0;
+	playback_state.playback_current_frame_recording_index = 0;
+	win_state.playback_state = &playback_state;
+
+	uint64 frame_recording_size = sizeof(frame_recording)*playback_state.num_recording_frames;
+	uint64 game_state_recording_size = memory.permanent_storage_size*playback_state.num_recording_frames;
+	uint64 recording_memory_size = frame_recording_size + game_state_recording_size;
+	all_memory_size += recording_memory_size;
+#endif
+
 	void* allocated_memory = VirtualAlloc(address_location, all_memory_size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 
 	if(allocated_memory == 0)
@@ -157,9 +181,15 @@ int WinMain(
 	memory.transient_storage = (uint8*)allocated_memory + audio_memory_size + memory.permanent_storage_size;
 
 #if GAME_INTERNAL
+	playback_state.frame_recording_start = (frame_recording*)((uint8*)memory.transient_storage + memory.transient_storage_size);
+	playback_state.game_state_recording_start = (uint8*)playback_state.frame_recording_start + frame_recording_size;
+#endif
+
+#if GAME_INTERNAL
 	memory.debug_read_entire_file = &debug_read_entire_file;
 	memory.debug_write_entire_file = &debug_write_entire_file;
 	memory.debug_free_file_memory = &debug_free_file_memory;
+	memory.debug_goto_playback = &debug_goto_playback;
 #endif
 
 	_resize_dib_section(&_bitmap_buffer, wanted_width, wanted_height);
@@ -188,7 +218,14 @@ int WinMain(
 		_load_game_code(&game_code, dll_file_path, temp_dll_file_path);
 
 		game::input_state game_input;
-		_process_window_messages(window, &game_input, &last_frame_input);
+		_process_window_messages(window, &game_input, &last_frame_input, &memory, &win_state);
+
+#if GAME_INTERNAL
+		if(playback_state.playback)
+		{
+			_playback_frame(&playback_state, &game_input, &game_time, &memory);
+		}
+#endif
 
 		game::render_output game_render_output = {};
 		game_render_output.memory = _bitmap_buffer.memory;
@@ -196,7 +233,26 @@ int WinMain(
 		game_render_output.width = _bitmap_buffer.width;
 		game_render_output.pitch = _bitmap_buffer.pitch;
 
+#if GAME_INTERNAL
+		if(setjmp(_forced_playback_jmp_buf)==0)
+		{
+			game_code.update_and_render(&thread, &memory, game_time, game_input, game_render_output);
+		}
+		else //forced playback
+		{
+			_record_frame(&playback_state, game_input, game_time, &memory);
+			_start_playback(&playback_state, &memory);
+		}
+#else
 		game_code.update_and_render(&thread, &memory, game_time, game_input, game_render_output);
+#endif
+
+#if GAME_INTERNAL
+		if(!playback_state.playback)//frame_recording
+		{
+			_record_frame(&playback_state, game_input, game_time, &memory);
+		}
+#endif
 
 		{ //render
 			HDC device_context = GetDC(window);
@@ -359,6 +415,19 @@ LRESULT CALLBACK main_window_callback(HWND window, UINT message, WPARAM wparam, 
 		case WM_SIZE:
 		{
 		} break;
+		case WM_PAINT:
+		{
+			PAINTSTRUCT paint;
+			HDC device_context = BeginPaint(window, &paint);
+			RECT client_rect;
+			GetClientRect(window, &client_rect);
+			_update_window(device_context, &client_rect, &_bitmap_buffer);
+			EndPaint(window, &paint);
+		} break;
+		case WM_ACTIVATE:
+		{
+			OutputDebugStringA("WM_ACTIVATE callback\n");
+		} break;
 		// keys
 		case WM_KEYDOWN:
 		case WM_KEYUP:
@@ -372,15 +441,6 @@ LRESULT CALLBACK main_window_callback(HWND window, UINT message, WPARAM wparam, 
 		case WM_MOUSEMOVE:
 		{
 			assert(false);
-		} break;
-		case WM_PAINT:
-		{
-			PAINTSTRUCT paint;
-			HDC device_context = BeginPaint(window, &paint);
-			RECT client_rect;
-			GetClientRect(window, &client_rect);
-			_update_window(device_context, &client_rect, &_bitmap_buffer);
-			EndPaint(window, &paint);
 		} break;
 		default:
 		{
@@ -479,7 +539,7 @@ internal void _unload_game_code(game_code* game_code)
 	game_code->is_valid = false;
 }
 
-internal void _process_window_messages(HWND window, game::input_state* current_input, game::input_state* previous_input)
+internal void _process_window_messages(HWND window, game::input_state* current_input, game::input_state* previous_input, game::game_memory* game_memory, win_state* win_state)
 {
 		HDC device_context = GetDC(window);
 		RECT client_rect;
@@ -518,12 +578,12 @@ internal void _process_window_messages(HWND window, game::input_state* current_i
 				{
 					uint32 key_code = (uint32)message.wParam;
 
+					bool was_down = (message.lParam & (1 << 30)) != 0;
+					bool is_down = (message.lParam & (1 << 31)) == 0;
+
 					game::button_state* button_state = _button_state_from_key_code(current_input, key_code);
 					if (button_state)
 					{
-						bool was_down = (message.lParam & (1 << 30)) != 0;
-						bool is_down = (message.lParam & (1 << 31)) == 0;
-
 						if(was_down != is_down)
 						{
 							++button_state->half_transitions;
@@ -531,10 +591,23 @@ internal void _process_window_messages(HWND window, game::input_state* current_i
 					}
 
 					uint32 alt_key_was_down = (message.lParam & (1 << 29));
-					if (key_code == VK_F4 && alt_key_was_down)
+					if(key_code == VK_F4 && is_down && alt_key_was_down)
 					{
 						_running = false;
 					}
+#if GAME_INTERNAL
+					if(key_code == BUTTON_L && is_down && alt_key_was_down)
+					{
+						if(win_state->playback_state->playback)
+						{
+							win_state->playback_state->stopping_playback = !win_state->playback_state->stopping_playback;
+						}
+						else
+						{
+							_start_playback(win_state->playback_state, game_memory);
+						}
+					}
+#endif
 				} break;
 				case WM_LBUTTONDOWN:
 				{
@@ -561,6 +634,10 @@ internal void _process_window_messages(HWND window, game::input_state* current_i
 					POINTS coordinates = MAKEPOINTS(message.lParam);
 					current_input->mouse_x = coordinates.x;
 					current_input->mouse_y = coordinates.y;
+				} break;
+				case WM_ACTIVATE:
+				{
+					assert(false);
 				} break;
 
 				default:
@@ -718,6 +795,74 @@ uint32 safe_truncate_uint64(uint64 value)
 }
 
 #if GAME_INTERNAL
+internal void _start_playback(win_playback_state* playback_state, game::game_memory* memory)
+{
+	uint16 start_playback_index;
+	if(playback_state->num_recorded_frames==playback_state->num_recording_frames)
+	{
+		start_playback_index = playback_state->frame_recording_index;
+	}
+	else
+	{
+		start_playback_index = 0;
+	}
+
+	playback_state->playback = true;
+	playback_state->playback_started_frame_recording_index = start_playback_index;
+	playback_state->playback_current_frame_recording_index = start_playback_index;
+}
+
+internal void _record_frame(
+	win_playback_state* playback_state,
+	game::input_state input,
+	game::game_time time,
+	game::game_memory* memory
+)
+{
+	frame_recording* current_frame_recording = playback_state->frame_recording_start+playback_state->frame_recording_index;
+	current_frame_recording->input = input;
+	current_frame_recording->time = time;
+	uint8* game_state_recording = playback_state->game_state_recording_start + playback_state->frame_recording_index*memory->permanent_storage_size;
+	memcpy(game_state_recording, memory->permanent_storage, memory->permanent_storage_size);
+
+	if(playback_state->num_recorded_frames < playback_state->num_recording_frames)
+	{
+		++playback_state->num_recorded_frames;
+	}
+
+	++playback_state->frame_recording_index = playback_state->frame_recording_index%playback_state->num_recording_frames;
+}
+
+internal void _playback_frame(
+	win_playback_state* playback_state,
+	game::input_state* input,
+	game::game_time* time,
+	game::game_memory* memory
+)
+{
+	bool at_start = playback_state->playback_current_frame_recording_index==playback_state->playback_started_frame_recording_index;
+	if(playback_state->stopping_playback && at_start)
+	{
+		playback_state->stopping_playback = false;
+		playback_state->playback = false;
+		return;
+	}
+
+
+	if(at_start)
+	{
+		uint16 game_state_index = (playback_state->playback_current_frame_recording_index+1)%playback_state->num_recording_frames;
+		uint8* game_state_start = playback_state->game_state_recording_start + game_state_index*memory->permanent_storage_size;
+		memcpy(memory->permanent_storage, game_state_start, memory->permanent_storage_size);
+	}
+
+	frame_recording* recording = playback_state->frame_recording_start+playback_state->playback_current_frame_recording_index;
+	*input = recording->input;
+	*time = recording->time;
+
+	++playback_state->playback_current_frame_recording_index = playback_state->playback_current_frame_recording_index%playback_state->num_recorded_frames;
+}
+
 DEBUG_FREE_FILE_MEMORY(debug_free_file_memory)
 {
 	VirtualFree(memory, 0, MEM_RELEASE);
@@ -787,5 +932,10 @@ DEBUG_WRITE_ENTIRE_FILE(debug_write_entire_file)
 	}
 
 	CloseHandle(handle);
+}
+
+DEBUG_GOTO_PLAYBACK(debug_goto_playback)
+{
+	longjmp(_forced_playback_jmp_buf, 1);
 }
 #endif

@@ -1,5 +1,4 @@
 #include "game.h"
-#include "game_intrinsics.cpp"
 #include "game_input.cpp"
 #include "game_tilemap.cpp"
 
@@ -201,6 +200,13 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 
 	if(!memory->is_initialized)
 	{
+#if GAME_INTERNAL
+		if(memory->debug_goto_playback)
+		{
+			_goto_playback_func = memory->debug_goto_playback;
+		}
+#endif
+
 		game_state->test_bitmap = _debug_load_bmp(thread, memory->debug_read_entire_file, "test/test_background.bmp");
 		game_state->test_bitmap.offset_x = 0;
 		game_state->test_bitmap.offset_y = 0;
@@ -579,8 +585,6 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 
 	if(input::button_held(MOUSE_LEFT))
 	{
-		int asd = 0;
-
 		game_state->player_position.tile_x = 3;
 		game_state->player_position.tile_y = 3;
 		game_state->player_position.tile_z = 0;
@@ -588,7 +592,7 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 		game_state->player_velocity = {0.0f, 0.0f};
 	}
 
-	math::vector2 top_left = {0.0f, 0.0f};
+
 	_draw_rectangle(&render_output, {0.0f, 0.0f}, {(float32)render_output.width, (float32)render_output.height}, 1.0f, 0.0f, 1.0f);
 	
 	_draw_bitmap(&render_output, &game_state->test_bitmap, {0.0f, 0.0f});

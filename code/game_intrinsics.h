@@ -33,4 +33,13 @@ namespace bit
 		return result;
 	}
 } //namespace bit
+
+	void debug_break()
+	{
+#if COMPILER_MSVC
+		__debugbreak();
+#else
+		*(uint8*)0 = 0;
+#endif
+	}
 } //namespace game
