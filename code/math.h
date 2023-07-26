@@ -76,6 +76,20 @@ uint32 max(uint32 a, uint32 b)
 	return result;
 }
 
+internal inline
+uint16 min(uint16 a, uint16 b)
+{
+	uint16 result = (a<b) ? a : b;
+	return result;
+}
+
+internal inline
+uint16 max(uint16 a, uint16 b)
+{
+	uint16 result = (a>b) ? a : b;
+	return result;
+}
+
 }//namespace math
 
 #include "vector2.h"

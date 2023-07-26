@@ -22,6 +22,7 @@
 #if COMPILER_MSVC
 #include <intrin.h>
 #pragma intrinsic(_BitScanForward)
+#pragma intrinsic(__debugbreak)
 #endif
 //
 //	/Compilers
@@ -48,12 +49,6 @@ typedef double				float64;
 
 #define memory_index size_t
 
-#if GAME_SLOWMODE
-#define assert(expression) {if(!(expression)){*(uint8*)0 = 0;}}
-#else
-#define assert(expression) {};
-#endif
-
 #define kilobytes(value) ((value)*1024)
 #define megabytes(value) (kilobytes(value)*1024)
 #define gigabytes(value) (megabytes(value)*1024)
@@ -68,32 +63,7 @@ uint32 array_size(T array)
 	return sizeof(array)/sizeof(T);
 }
 
-#include "math.h"
-#include "game_input.h"
-
-namespace game
-{
-struct memory_space
-{
-	uint8* base;
-	memory_index max_memory;
-	memory_index used_memory;
-};
-
-#define _push_struct(space, struct) (struct*)_push_size(space, sizeof(struct));
-#define _push_array(space, type, num_elements) (type*)_push_size(space, sizeof(type)*num_elements);
-
-internal
-void* _push_size(memory_space* space, memory_index size)
-{
-	assert((space->used_memory + size) <= space->max_memory);
-	void* result = (void*)(space->base + space->used_memory);
-	space->used_memory += size;
-	return result;
-}
-}//namespace game
-#include "game_tilemap.h"
-#include "game_random.h"
+#include "game_intrinsics.h"
 
 namespace game
 {
@@ -116,7 +86,52 @@ typedef DEBUG_WRITE_ENTIRE_FILE(debug_write_entire_file_def);
 
 #define DEBUG_FREE_FILE_MEMORY(name) void name(game::thread_context* thread, void* memory)
 typedef DEBUG_FREE_FILE_MEMORY(debug_free_file_memory_def);
+
+#define DEBUG_GOTO_PLAYBACK(name) void name()
+typedef DEBUG_GOTO_PLAYBACK(debug_goto_playback_def);
 #endif
+
+}//namespace game
+
+global_variable game::debug_goto_playback_def* _goto_playback_func = nullptr;
+
+#if GAME_SLOWMODE
+#define assert(expression) {if(!(expression)){game::debug_break(); if(_goto_playback_func){_goto_playback_func();}}}
+#else
+#define assert(expression) {};
+#endif
+
+namespace game
+{
+
+struct memory_space
+{
+	uint8* base;
+	memory_index max_memory;
+	memory_index used_memory;
+};
+
+#define _push_struct(space, struct) (struct*)_push_size(space, sizeof(struct));
+#define _push_array(space, type, num_elements) (type*)_push_size(space, sizeof(type)*num_elements);
+
+internal
+void* _push_size(memory_space* space, memory_index size)
+{
+	assert((space->used_memory + size) <= space->max_memory);
+	void* result = (void*)(space->base + space->used_memory);
+	space->used_memory += size;
+	return result;
+}
+
+}//namespace game
+
+#include "math.h"
+#include "game_input.h"
+#include "game_tilemap.h"
+#include "game_random.h"
+
+namespace game
+{
 
 struct game_memory //NOTE(staffan): memory REQUIRES to be initialized to zero
 {
@@ -130,6 +145,7 @@ struct game_memory //NOTE(staffan): memory REQUIRES to be initialized to zero
 	debug_read_entire_file_def* debug_read_entire_file;
 	debug_write_entire_file_def* debug_write_entire_file;
 	debug_free_file_memory_def* debug_free_file_memory;
+	debug_goto_playback_def* debug_goto_playback;
 #endif
 
 	bool is_initialized;
