@@ -6,11 +6,11 @@ namespace bit
 	struct scan_bit_result
 	{
 		bool found;
-		uint32 index;
+		u32 index;
 	};
 
 	inline internal
-	scan_bit_result find_least_significant_set_bit(uint32 value)
+	scan_bit_result find_least_significant_set_bit(u32 value)
 	{
 		scan_bit_result result = {};
 

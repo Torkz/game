@@ -5,7 +5,7 @@ namespace tiles
 {
 
 internal inline
-chunk_position _tile_chunk_position_from_tile_coordinates(tile_map* tile_map, uint32 tile_x, uint32 tile_y, uint32 tile_z)
+chunk_position _tile_chunk_position_from_tile_coordinates(tile_map* tile_map, u32 tile_x, u32 tile_y, u32 tile_z)
 {
 	chunk_position result;
 
@@ -34,9 +34,9 @@ internal inline chunk* _tile_chunk_from_tile_chunk_position(tile_map* tile_map, 
 }
 
 internal inline
-uint32 _tile_value_from_tile_chunk_position(tile_map* tile_map, chunk_position chunk_position)
+u32 _tile_value_from_tile_chunk_position(tile_map* tile_map, chunk_position chunk_position)
 {
-	uint32 result = 0;
+	u32 result = 0;
 	if(
 		chunk_position.chunk_x < tile_map->num_chunks_x &&
 		chunk_position.chunk_y < tile_map->num_chunks_y &&
@@ -53,7 +53,7 @@ uint32 _tile_value_from_tile_chunk_position(tile_map* tile_map, chunk_position c
 }
 
 internal inline
-bool tile_value_is_valid(uint32 tile_value)
+bool tile_value_is_valid(u32 tile_value)
 {
 	bool result;
 	if(
@@ -74,45 +74,45 @@ internal inline
 bool position_is_valid(tile_map* tile_map, tile_map_position position)
 {
 	chunk_position chunk_position = _tile_chunk_position_from_world_position(tile_map, position);
-	uint32 tile_value = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
+	u32 tile_value = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
 	return tile_value_is_valid(tile_value);
 }
 
 internal inline
-bool position_is_valid(tile_map* tile_map, uint32 tile_x, uint32 tile_y, uint32 tile_z)
+bool position_is_valid(tile_map* tile_map, u32 tile_x, u32 tile_y, u32 tile_z)
 {
 	chunk_position chunk_position = _tile_chunk_position_from_tile_coordinates(tile_map, tile_x, tile_y, tile_z);
-	uint32 tile_value = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
+	u32 tile_value = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
 	return tile_value_is_valid(tile_value);
 }
 
 internal inline
-uint32 tile_value(tile_map* tile_map, uint32 tile_x, uint32 tile_y, uint32 tile_z)
+u32 tile_value(tile_map* tile_map, u32 tile_x, u32 tile_y, u32 tile_z)
 {
-	uint32 result;
+	u32 result;
 	chunk_position chunk_position = _tile_chunk_position_from_tile_coordinates(tile_map, tile_x, tile_y, tile_z);
 	result = _tile_value_from_tile_chunk_position(tile_map, chunk_position);
 	return result;
 }
 
 internal inline
-uint32 tile_value(tile_map* tile_map, tile_map_position position)
+u32 tile_value(tile_map* tile_map, tile_map_position position)
 {
-	uint32 result = tile_value(tile_map, position.tile_x, position.tile_y, position.tile_z);
+	u32 result = tile_value(tile_map, position.tile_x, position.tile_y, position.tile_z);
 	return result;
 }
 
 internal inline
-void set_tile_value(tile_map* tile_map, uint32 tile_x, uint32 tile_y, uint32 tile_z, uint32 tile_value)
+void set_tile_value(tile_map* tile_map, u32 tile_x, u32 tile_y, u32 tile_z, u32 tile_value)
 {
 	chunk_position chunk_position = _tile_chunk_position_from_tile_coordinates(tile_map, tile_x, tile_y, tile_z);
 	chunk* chunk = _tile_chunk_from_tile_chunk_position(tile_map, chunk_position);
 
 	if(!chunk->tiles)
 	{
-		chunk->tiles = _push_array(tile_map->memory_space, uint32, tile_map->chunk_dimension*tile_map->chunk_dimension);
+		chunk->tiles = _push_array(tile_map->memory_space, u32, tile_map->chunk_dimension*tile_map->chunk_dimension);
 
-		for(uint32 i = 0;
+		for(u32 i = 0;
 			i < tile_map->chunk_dimension*tile_map->chunk_dimension;
 			++i)
 		{
@@ -126,14 +126,14 @@ void set_tile_value(tile_map* tile_map, uint32 tile_x, uint32 tile_y, uint32 til
 // todo(staffan): figure it out man.
 // tile_map_position stuff might be better placed somewhere else than tiles namespace.
 internal inline
-void _recanonicalize_coordinate(tile_map* tile_map, uint32* tile, float32* tile_relative)
+void _recanonicalize_coordinate(tile_map* tile_map, u32* tile, f32* tile_relative)
 {
 	#if GAME_SLOWMODE
-	uint32 tile_prev = *tile;
-	float32 tile_rel_prev = *tile_relative;
+	u32 tile_prev = *tile;
+	f32 tile_rel_prev = *tile_relative;
 	#endif
 
-	int32 tile_offset = math::round_float_to_int(*tile_relative / tile_map->tile_side_in_metres);
+	i32 tile_offset = math::round_f32_to_i32(*tile_relative / tile_map->tile_side_in_metres);
 	*tile += tile_offset;
 	*tile_relative -= tile_map->tile_side_in_metres*tile_offset;
 
@@ -175,18 +175,18 @@ internal inline
 tile_map_position_difference difference(tile_map* tile_map, tile_map_position a, tile_map_position b)
 {
 	tile_map_position_difference result;
-	result.xy.x = ((float32)b.tile_x*tile_map->tile_side_in_metres + b.tile_relative.x)
-					-((float32)a.tile_x*tile_map->tile_side_in_metres + a.tile_relative.x);
-	result.xy.y = ((float32)b.tile_y*tile_map->tile_side_in_metres + b.tile_relative.y)
-					-((float32)a.tile_y*tile_map->tile_side_in_metres + a.tile_relative.y);
+	result.xy.x = ((f32)b.tile_x*tile_map->tile_side_in_metres + b.tile_relative.x)
+					-((f32)a.tile_x*tile_map->tile_side_in_metres + a.tile_relative.x);
+	result.xy.y = ((f32)b.tile_y*tile_map->tile_side_in_metres + b.tile_relative.y)
+					-((f32)a.tile_y*tile_map->tile_side_in_metres + a.tile_relative.y);
 	result.z = b.tile_z-a.tile_z;
 	return result;
 }
 
 struct tile_edge
 {
-	math::vector2 closest_position;
-	math::vector2 normal;
+	math::v2 closest_position;
+	math::v2 normal;
 };
 internal inline
 tile_edge closest_tile_edge(tile_map_position tile_position, tile_map_position compare_position)

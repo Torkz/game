@@ -4,7 +4,7 @@ namespace game
 {
 
 #define RANDOM_VALUE_TABLE_SIZE 1000
-global_variable uint32 random_value_table[RANDOM_VALUE_TABLE_SIZE] = {
+global_variable u32 random_value_table[RANDOM_VALUE_TABLE_SIZE] = {
 	0x2117f33d,	0x31af0e4c,	0x138a6e3d,	0x29774f53,	0x0401036d,	0x31f7d67c,	0x336a5de6,	0x0df2f736,
 	0x2f6deada,	0x39e520aa,	0x3085fa13,	0x017cd2eb,	0x0fcad2b7,	0x1ab0efdf,	0x10cbef30,	0x23a30267,
 	0x3ace0a87,	0x1c6c898a,	0x2cfff24a,	0x05091012,	0x1ab57065,	0x0a3b8338,	0x296b8f2a,	0x06ed3b8a,
@@ -133,7 +133,7 @@ global_variable uint32 random_value_table[RANDOM_VALUE_TABLE_SIZE] = {
 };
 
 inline internal
-uint32 random_number(uint32 index)
+u32 random_number(u32 index)
 {
 	assert(index < RANDOM_VALUE_TABLE_SIZE);
 	return random_value_table[index];

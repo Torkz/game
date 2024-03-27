@@ -12,20 +12,20 @@ enum buttons
 struct button_state
 {
 	bool was_down;
-	uint8 half_transitions;
+	u8 half_transitions;
 };
 
 struct input_state
 {
 	button_state buttons[LAST];
 
-	short mouse_x;
-	short mouse_y;
-	short mouse_delta_x;
-	short mouse_delta_y;
+	i16 mouse_x;
+	i16 mouse_y;
+	i16 mouse_delta_x;
+	i16 mouse_delta_y;
 
-	short window_width;
-	short window_height;
+	i16 window_width;
+	i16 window_height;
 };
 
 } //namespace game

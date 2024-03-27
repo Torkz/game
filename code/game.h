@@ -28,16 +28,16 @@
 //	/Compilers
 //
 
-typedef signed char        	int8;
-typedef short              	int16;
-typedef int                	int32;
-typedef long long          	int64;
-typedef unsigned char      	uint8;
-typedef unsigned short     	uint16;
-typedef unsigned int       	uint32;
-typedef unsigned long long 	uint64;
-typedef float				float32;
-typedef double				float64;
+typedef signed char        	i8;
+typedef short              	i16;
+typedef int                	i32;
+typedef long long          	i64;
+typedef unsigned char      	u8;
+typedef unsigned short     	u16;
+typedef unsigned int       	u32;
+typedef unsigned long long 	u64;
+typedef float				f32;
+typedef double				f64;
 
 #define global_variable static
 #define internal static
@@ -58,7 +58,7 @@ typedef double				float64;
 
 template <typename T>
 internal inline
-uint32 array_size(T array)
+u32 array_size(T array)
 {
 	return sizeof(array)/sizeof(T);
 }
@@ -69,7 +69,7 @@ namespace game
 {
 struct thread_context
 {
-	int placeholder;
+	i32 placeholder;
 };
 
 #if GAME_INTERNAL
@@ -106,7 +106,7 @@ namespace game
 
 struct memory_space
 {
-	uint8* base;
+	u8* base;
 	memory_index max_memory;
 	memory_index used_memory;
 };
@@ -154,22 +154,22 @@ struct game_memory //NOTE(staffan): memory REQUIRES to be initialized to zero
 struct render_output
 {
 	void* memory;
-	int height;
-	int width;
-	int pitch;
+	i32 height;
+	i32 width;
+	i32 pitch;
 };
 
 struct audio_output
 {
-	uint16* memory;
-	int sample_rate;
-	int num_samples_to_fill;
+	u16* memory;
+	i32 sample_rate;
+	i32 num_samples_to_fill;
 };
 
 struct game_time
 {
-	float32 t;
-	float32 dt;
+	f32 t;
+	f32 dt;
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void name(thread_context* thread, game_memory* memory, game_time time, input_state input, render_output& render_output)
@@ -192,13 +192,13 @@ struct world
 
 struct loaded_bitmap
 {
-	uint32* pixels;
+	u32* pixels;
 
-	int32 width;
-	int32 height;
+	i32 width;
+	i32 height;
 
-	int32 offset_x;
-	int32 offset_y;
+	i32 offset_x;
+	i32 offset_y;
 };
 
 struct game_state
@@ -206,11 +206,14 @@ struct game_state
 	memory_space world_space;
 	world* world;
 
-	math::vector2 player_velocity;
+	math::v2 player_velocity;
 	tile_map_position player_position;
 	loaded_bitmap player_bitmap;
 
 	loaded_bitmap test_bitmap;
+
+	bool should_rotate;
+	f32 rotation;
 };
 
 } //namespace game

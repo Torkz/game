@@ -11,7 +11,7 @@ global_variable IXAudio2SourceVoice* _xaudio2_source_voice = nullptr;
 global_variable UINT32 _xaudio2_audio_data_buffer_size;
 global_variable BYTE* _xaudio2_audio_data;
 
-global_variable int64 _performance_counter_frequency;
+global_variable i64 _performance_counter_frequency;
 
 #if GAME_INTERNAL
 global_variable jmp_buf _forced_playback_jmp_buf;
@@ -69,7 +69,7 @@ int WinMain(
 	//todo(staffan): get this from windows.
 	int monitor_update_frequency = 60;
 	int game_update_frequency = monitor_update_frequency/2;
-	float32 target_dt = 1.0f/(float32)game_update_frequency;
+	f32 target_dt = 1.0f/(f32)game_update_frequency;
 
 	LARGE_INTEGER performance_frequency_result;
 	QueryPerformanceFrequency(&performance_frequency_result);
@@ -128,17 +128,17 @@ int WinMain(
 	WORD bits_per_sample = 16;
 	DWORD sample_rate = 48000;
 	//todo(staffan): figure out audio timings with framerate.
-	float32 buffer_duration = 1.0f/60.0f; //seconds
+	f32 buffer_duration = 1.0f/60.0f; //seconds
 	// float32 buffer_duration = target_dt; //seconds
 	_initialize_xaudio2(num_channels, bits_per_sample, sample_rate, buffer_duration);
 
-	uint32 num_samples_per_buffer = (_xaudio2_audio_data_buffer_size*8)/(bits_per_sample*2);
+	u32 num_samples_per_buffer = (_xaudio2_audio_data_buffer_size*8)/(bits_per_sample*2);
 
 	int audio_buffer_index = 0;
 	BYTE audio_buffer[((2*16)/8)*48000*2]; //todo(staffan): revisit size.
 
 #if GAME_INTERNAL
-	LPVOID address_location = (LPVOID)terabytes((uint64)2);
+	LPVOID address_location = (LPVOID)terabytes((u64)2);
 #else
 	LPVOID address_location = 0;
 #endif
@@ -147,8 +147,8 @@ int WinMain(
 	memory.permanent_storage_size = megabytes(32);
 	memory.transient_storage_size = gigabytes(1);
 
-	uint64 audio_memory_size = _xaudio2_audio_data_buffer_size*XAUDIO2_NUM_BUFFERS;
-	uint64 all_memory_size = audio_memory_size+memory.permanent_storage_size+memory.transient_storage_size;
+	u64 audio_memory_size = _xaudio2_audio_data_buffer_size*XAUDIO2_NUM_BUFFERS;
+	u64 all_memory_size = audio_memory_size+memory.permanent_storage_size+memory.transient_storage_size;
 
 #if GAME_INTERNAL
 	win_playback_state playback_state;
@@ -161,9 +161,9 @@ int WinMain(
 	playback_state.playback_current_frame_recording_index = 0;
 	win_state.playback_state = &playback_state;
 
-	uint64 frame_recording_size = sizeof(frame_recording)*playback_state.num_recording_frames;
-	uint64 game_state_recording_size = memory.permanent_storage_size*playback_state.num_recording_frames;
-	uint64 recording_memory_size = frame_recording_size + game_state_recording_size;
+	u64 frame_recording_size = sizeof(frame_recording)*playback_state.num_recording_frames;
+	u64 game_state_recording_size = memory.permanent_storage_size*playback_state.num_recording_frames;
+	u64 recording_memory_size = frame_recording_size + game_state_recording_size;
 	all_memory_size += recording_memory_size;
 #endif
 
@@ -177,12 +177,12 @@ int WinMain(
 	}
 
 	_xaudio2_audio_data = (BYTE*)allocated_memory;
-	memory.permanent_storage = (uint8*)allocated_memory + audio_memory_size;
-	memory.transient_storage = (uint8*)allocated_memory + audio_memory_size + memory.permanent_storage_size;
+	memory.permanent_storage = (u8*)allocated_memory + audio_memory_size;
+	memory.transient_storage = (u8*)allocated_memory + audio_memory_size + memory.permanent_storage_size;
 
 #if GAME_INTERNAL
-	playback_state.frame_recording_start = (frame_recording*)((uint8*)memory.transient_storage + memory.transient_storage_size);
-	playback_state.game_state_recording_start = (uint8*)playback_state.frame_recording_start + frame_recording_size;
+	playback_state.frame_recording_start = (frame_recording*)((u8*)memory.transient_storage + memory.transient_storage_size);
+	playback_state.game_state_recording_start = (u8*)playback_state.frame_recording_start + frame_recording_size;
 #endif
 
 #if GAME_INTERNAL
@@ -211,7 +211,7 @@ int WinMain(
 
 	LARGE_INTEGER last_time = _windows_time();
 #if 1
-	int64 last_cycle_count = __rdtsc();
+	i64 last_cycle_count = __rdtsc();
 #endif
 	while (_running)
 	{
@@ -270,13 +270,13 @@ int WinMain(
 			int num_audio_buffers_to_fill = XAUDIO2_NUM_BUFFERS-voice_state.BuffersQueued;
 
 			game::audio_output game_audio_output = {};
-			game_audio_output.memory = (uint16*)audio_buffer;
+			game_audio_output.memory = (u16*)audio_buffer;
 			game_audio_output.sample_rate = sample_rate;
 			game_audio_output.num_samples_to_fill = num_samples_per_buffer*num_audio_buffers_to_fill;
 
 			game_code.fill_audio_output(&thread, &memory, game_audio_output);
 
-			uint16* input_sample = (uint16*)audio_buffer;
+			u16* input_sample = (u16*)audio_buffer;
 			for(
 				int i = 0;
 				i < num_audio_buffers_to_fill;
@@ -299,9 +299,9 @@ int WinMain(
 
 				BYTE* audio_data_pointer = _xaudio2_audio_data + (_xaudio2_audio_data_buffer_size*audio_buffer_index);
 				//todo(staffan): make this faster.
-				uint16* output_sample = (uint16*)audio_data_pointer;
+				u16* output_sample = (u16*)audio_data_pointer;
 				for(
-					uint32 sample_index = 0;
+					u32 sample_index = 0;
 					sample_index < num_samples_per_buffer;
 					++sample_index
 				)
@@ -321,7 +321,7 @@ int WinMain(
 		}
 
 		LARGE_INTEGER work_time = _windows_time();
-		float32 work_time_elapsed = _time_elapsed(last_time, work_time);
+		f32 work_time_elapsed = _time_elapsed(last_time, work_time);
 		if (work_time_elapsed < target_dt)
 		{
 			// Sleep((int)((target_dt-work_time_elapsed)*1000.0f));
@@ -458,12 +458,12 @@ inline internal LARGE_INTEGER _windows_time()
 	return counter;
 }
 
-inline internal float32 _time_elapsed(LARGE_INTEGER begin, LARGE_INTEGER end)
+inline internal f32 _time_elapsed(LARGE_INTEGER begin, LARGE_INTEGER end)
 {
-	return (float32)(end.QuadPart - begin.QuadPart) / (float32)_performance_counter_frequency;
+	return (f32)(end.QuadPart - begin.QuadPart) / (f32)_performance_counter_frequency;
 }
 
-inline internal game::button_state* _button_state_from_key_code(game::input_state* game_input, uint32 key_code)
+inline internal game::button_state* _button_state_from_key_code(game::input_state* game_input, u32 key_code)
 {
 	if (key_code == BUTTON_A)
 	{
@@ -548,8 +548,8 @@ internal void _process_window_messages(HWND window, game::input_state* current_i
 		int window_width = client_rect.right - client_rect.left;
 		int window_height = client_rect.bottom - client_rect.top;
 
-		current_input->window_width = (short)window_width;
-		current_input->window_height = (short)window_height;
+		current_input->window_width = (i16)window_width;
+		current_input->window_height = (i16)window_height;
 		current_input->mouse_x = previous_input->mouse_x;
 		current_input->mouse_y = previous_input->mouse_y;
 		for (int i=0; i<game::buttons::LAST; ++i)
@@ -557,7 +557,7 @@ internal void _process_window_messages(HWND window, game::input_state* current_i
 			game::button_state* this_frame = &current_input->buttons[i];
 			game::button_state* last_frame = &previous_input->buttons[i];
 
-			this_frame->was_down = (last_frame->half_transitions%2 == (uint8)!last_frame->was_down) ? true : false;
+			this_frame->was_down = (last_frame->half_transitions%2 == (u8)!last_frame->was_down) ? true : false;
 			this_frame->half_transitions = 0;
 		}
 
@@ -576,7 +576,7 @@ internal void _process_window_messages(HWND window, game::input_state* current_i
 				case WM_SYSKEYDOWN:
 				case WM_SYSKEYUP:
 				{
-					uint32 key_code = (uint32)message.wParam;
+					u32 key_code = (u32)message.wParam;
 
 					bool was_down = (message.lParam & (1 << 30)) != 0;
 					bool is_down = (message.lParam & (1 << 31)) == 0;
@@ -590,7 +590,7 @@ internal void _process_window_messages(HWND window, game::input_state* current_i
 						}
 					}
 
-					uint32 alt_key_was_down = (message.lParam & (1 << 29));
+					u32 alt_key_was_down = (message.lParam & (1 << 29));
 					if(key_code == VK_F4 && is_down && alt_key_was_down)
 					{
 						_running = false;
@@ -703,7 +703,7 @@ internal void _update_window(HDC device_context, RECT* window_rect, win_bitmap_b
 	);
 }
 
-internal void _initialize_xaudio2(WORD num_channels, WORD bits_per_sample, DWORD sample_rate, float32 buffer_duration)
+internal void _initialize_xaudio2(WORD num_channels, WORD bits_per_sample, DWORD sample_rate, f32 buffer_duration)
 {
 	HRESULT result;
 	if ( FAILED(result = XAudio2Create( &_xaudio2_engine, 0, XAUDIO2_DEFAULT_PROCESSOR)))
@@ -751,7 +751,7 @@ internal void _initialize_xaudio2(WORD num_channels, WORD bits_per_sample, DWORD
 		return;
 	}
 
-	_xaudio2_audio_data_buffer_size = (uint32)((float32)wave_format.nAvgBytesPerSec*buffer_duration);
+	_xaudio2_audio_data_buffer_size = (u32)((f32)wave_format.nAvgBytesPerSec*buffer_duration);
 }
 
 internal void _post_error(const char* function)
@@ -787,17 +787,17 @@ internal void _post_error(const char* function)
 }
 
 inline internal
-uint32 safe_truncate_uint64(uint64 value)
+u32 safe_truncate_uint64(u64 value)
 {
 	assert(value <= 0xFFFFFFFF);
-	uint32 result = (uint32)value;
+	u32 result = (u32)value;
 	return result;
 }
 
 #if GAME_INTERNAL
 internal void _start_playback(win_playback_state* playback_state, game::game_memory* memory)
 {
-	uint16 start_playback_index;
+	u16 start_playback_index;
 	if(playback_state->num_recorded_frames==playback_state->num_recording_frames)
 	{
 		start_playback_index = playback_state->frame_recording_index;
@@ -822,7 +822,7 @@ internal void _record_frame(
 	frame_recording* current_frame_recording = playback_state->frame_recording_start+playback_state->frame_recording_index;
 	current_frame_recording->input = input;
 	current_frame_recording->time = time;
-	uint8* game_state_recording = playback_state->game_state_recording_start + playback_state->frame_recording_index*memory->permanent_storage_size;
+	u8* game_state_recording = playback_state->game_state_recording_start + playback_state->frame_recording_index*memory->permanent_storage_size;
 	memcpy(game_state_recording, memory->permanent_storage, memory->permanent_storage_size);
 
 	if(playback_state->num_recorded_frames < playback_state->num_recording_frames)
@@ -851,8 +851,8 @@ internal void _playback_frame(
 
 	if(at_start)
 	{
-		uint16 game_state_index = (playback_state->playback_current_frame_recording_index+1)%playback_state->num_recording_frames;
-		uint8* game_state_start = playback_state->game_state_recording_start + game_state_index*memory->permanent_storage_size;
+		u16 game_state_index = (playback_state->playback_current_frame_recording_index+1)%playback_state->num_recording_frames;
+		u8* game_state_start = playback_state->game_state_recording_start + game_state_index*memory->permanent_storage_size;
 		memcpy(memory->permanent_storage, game_state_start, memory->permanent_storage_size);
 	}
 
@@ -887,7 +887,7 @@ DEBUG_READ_ENTIRE_FILE(debug_read_entire_file)
 		return result;
 	}
 
-	uint32 file_size_32 = safe_truncate_uint64(file_size.QuadPart);
+	u32 file_size_32 = safe_truncate_uint64(file_size.QuadPart);
 	void* content = VirtualAlloc(0, file_size_32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 	if(content == 0)
 	{

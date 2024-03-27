@@ -180,7 +180,7 @@
 //VK_PA1	0xFD	PA1 key
 #define BUTTON_OEM_CLEAR			0xFE
 
-static const char* _button_id(int index)
+static const char* _button_id(i32 index)
 {
 	switch(index)
 	{

@@ -2,146 +2,146 @@
 namespace math
 {
 
-union vector2
+union v2
 {
 	struct
 	{
-		float32 x, y;
+		f32 x, y;
 	};
-	float32 element[2];
+	f32 elements[2];
 };
 
-inline vector2
-operator-(vector2 v)\
+inline v2
+operator-(v2 v)\
 {
-	vector2 result;
+	v2 result;
 	result.x = -v.x;
 	result.y = -v.y;
 	return result;
 };
 
-inline vector2
-operator-(vector2 v1, vector2 v2)\
+inline v2
+operator-(v2 a, v2 b)\
 {
-	vector2 result;
-	result.x = v1.x-v2.x;
-	result.y = v1.y-v2.y;
+	v2 result;
+	result.x = a.x-b.x;
+	result.y = a.y-b.y;
 	return result;
 };
 
 inline void
-operator-=(vector2& v1, vector2 v2)
+operator-=(v2& a, v2 b)
 {
-	v1 = v1 - v2;
+	a = a - b;
 };
 
-inline vector2
-operator+(vector2 v1, vector2 v2)\
+inline v2
+operator+(v2 a, v2 b)\
 {
-	vector2 result;
-	result.x = v1.x+v2.x;
-	result.y = v1.y+v2.y;
+	v2 result;
+	result.x = a.x+b.x;
+	result.y = a.y+b.y;
 	return result;
 };
 
 inline void
-operator+=(vector2& v1, vector2 v2)\
+operator+=(v2& a, v2 b)\
 {
-	v1 = v1 + v2;
+	a = a + b;
 };
 
-inline vector2
-operator*(vector2 v1, vector2 v2)\
+inline v2
+operator*(v2 a, v2 b)\
 {
-	vector2 result;
-	result.x = v1.x*v2.x;
-	result.y = v1.y*v2.y;
+	v2 result;
+	result.x = a.x*b.x;
+	result.y = a.y*b.y;
 	return result;
 };
 
 inline void
-operator*=(vector2& v1, vector2 v2)
+operator*=(v2& a, v2 b)
 {
-	v1 = v1*v2;
+	a = a*b;
 };
 
-inline vector2
-operator*(vector2 v, float32 scale)\
+inline v2
+operator*(v2 v, f32 scale)\
 {
-	vector2 result;
+	v2 result;
 	result.x = v.x*scale;
 	result.y = v.y*scale;
 	return result;
 };
 
-inline vector2
-operator*(float32 scale, vector2 v)\
+inline v2
+operator*(f32 scale, v2 v)\
 {
-	vector2 result;
+	v2 result;
 	result = v*scale;
 	return result;
 };
 
 inline void
-operator*=(vector2& v, float32 scale)\
+operator*=(v2& v, f32 scale)\
 {
 	v = v * scale;
 };
 
-inline vector2
-operator/(vector2 v, float32 scale)\
+inline v2
+operator/(v2 v, f32 scale)\
 {
-	vector2 result;
+	v2 result;
 	result.x = v.x / scale;
 	result.y = v.y / scale;
 	return result;
 }
 
-inline float32
-length_squared(vector2 v)
+inline f32
+length_squared(v2 v)
 {
-	float32 result;
+	f32 result;
 	result = v.x*v.x + v.y*v.y;
 	return result;
 }
 
-inline float32
-length(vector2 v)
+inline f32
+length(v2 v)
 {
-	float32 result;
+	f32 result;
 	result = math::square_root(length_squared(v));
 	return result;
 }
 
-inline vector2
-normalize(vector2 v)
+inline v2
+normalize(v2 v)
 {
-	vector2 result;
+	v2 result;
 	result = v / length(v);
 	return result;
 }
 
-inline float32
-dot(vector2 v1, vector2 v2)
+inline f32
+dot(v2 a, v2 b)
 {
-	float32 result;
-	result = v1.x*v2.x + v1.y*v2.y;
+	f32 result;
+	result = a.x*b.x + a.y*b.y;
 	return result;
 }
 
-inline float32
-cross(vector2 v1, vector2 v2)
+inline f32
+cross(v2 a, v2 b)
 {
-	float32 result;
-	result = v1.x*v2.y - v1.y*v2.x;
+	f32 result;
+	result = a.x*b.y - a.y*b.x;
 	return result;
 }
 
-inline vector2
-lerp(vector2 v1, vector2 v2, float32 t)
+inline v2
+lerp(v2 a, v2 b, f32 t)
 {
-	vector2 result;
-	result = v1 + (v2-v1)*t;
+	v2 result;
+	result = a + (b-a)*t;
 	return result;
 }
 
