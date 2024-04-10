@@ -232,6 +232,7 @@ int WinMain(
 		game_render_output.height = _bitmap_buffer.height;
 		game_render_output.width = _bitmap_buffer.width;
 		game_render_output.pitch = _bitmap_buffer.pitch;
+		game_render_output.depth_buffer_pitch = _bitmap_buffer.depth_buffer_pitch;
 
 #if GAME_INTERNAL
 		if(setjmp(_forced_playback_jmp_buf)==0)
@@ -481,6 +482,14 @@ inline internal game::button_state* _button_state_from_key_code(game::input_stat
 	{
 		return &game_input->buttons[game::buttons::W];
 	}
+	else if (key_code == BUTTON_Q)
+	{
+		return &game_input->buttons[game::buttons::Q];
+	}
+	else if (key_code == BUTTON_E)
+	{
+		return &game_input->buttons[game::buttons::E];
+	}
 	else if(key_code == BUTTON_SPACEBAR)
 	{
 		return &game_input->buttons[game::buttons::SPACEBAR];
@@ -668,6 +677,7 @@ internal void _resize_dib_section(win_bitmap_buffer* bitmap_buffer, int width, i
 	bitmap_buffer->height = height;
 	bitmap_buffer->bytes_per_pixel = 4;
 	bitmap_buffer->pitch = bitmap_buffer->width * bitmap_buffer->bytes_per_pixel;
+	bitmap_buffer->depth_buffer_pitch = bitmap_buffer->width * sizeof(f32);
 
 	bitmap_buffer->info.bmiHeader.biSize = sizeof(bitmap_buffer->info.bmiHeader);
 	bitmap_buffer->info.bmiHeader.biWidth = bitmap_buffer->width;
@@ -677,7 +687,8 @@ internal void _resize_dib_section(win_bitmap_buffer* bitmap_buffer, int width, i
 	bitmap_buffer->info.bmiHeader.biCompression = BI_RGB;
 
 	int bitmap_memory_size = bitmap_buffer->width*bitmap_buffer->height * bitmap_buffer->bytes_per_pixel;
-	bitmap_buffer->memory = VirtualAlloc(0, bitmap_memory_size, MEM_COMMIT, PAGE_READWRITE);
+	int back_buffer_size = bitmap_buffer->width*bitmap_buffer->height * sizeof(f32);
+	bitmap_buffer->memory = VirtualAlloc(0, bitmap_memory_size+back_buffer_size, MEM_COMMIT, PAGE_READWRITE);
 }
 
 internal void _update_window(HDC device_context, RECT* window_rect, win_bitmap_buffer* buffer)

@@ -153,10 +153,11 @@ struct game_memory //NOTE(staffan): memory REQUIRES to be initialized to zero
 
 struct render_output
 {
-	void* memory;
+	void* memory; //depth buffer starts at (u8*)memory + pitch*height
 	i32 height;
 	i32 width;
 	i32 pitch;
+	i32 depth_buffer_pitch;
 };
 
 struct audio_output
@@ -201,8 +202,23 @@ struct loaded_bitmap
 	i32 offset_y;
 };
 
+struct triangle
+{
+	i32 indicies[3];
+};
+
+struct loaded_mesh
+{
+	v3* vertices;
+	triangle* faces;
+
+	i32 num_vertices;
+	i32 num_faces;
+};
+
 struct game_state
 {
+	memory_space mesh_space;
 	memory_space world_space;
 	world* world;
 
@@ -214,6 +230,11 @@ struct game_state
 
 	bool should_rotate;
 	f32 rotation;
+
+	v3 camera_position;
+	v3 camera_direction;
+
+	loaded_mesh test_mesh;
 };
 
 } //namespace game

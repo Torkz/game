@@ -9,11 +9,12 @@
 struct win_bitmap_buffer
 {
 	BITMAPINFO info;
-	void* memory;
+	void* memory; //depth buffer starts at (u8*)memory + pitch*height
 	int width;
 	int height;
 	int bytes_per_pixel;
 	int pitch;
+	int depth_buffer_pitch;
 };
 
 struct game_code

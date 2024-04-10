@@ -17,6 +17,13 @@ operator-(v3 a, v3 b)
     return result;
 }
 
+inline void
+operator-=(v3& a, v3 b)
+{
+    a = a-b;
+}
+
+
 inline v3
 operator/(v3 v, f32 scale)
 {

@@ -5,7 +5,7 @@ namespace game
 enum buttons
 {
 	MOUSE_LEFT = 0, MOUSE_RIGHT,
-	A, S, D, W, SPACEBAR,
+	A, S, D, W, Q, E, SPACEBAR,
 	LAST
 };
 

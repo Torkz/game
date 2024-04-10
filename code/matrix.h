@@ -23,10 +23,143 @@ struct m4x4
 		}
 		return result;
 	}
+
+	internal inline
+	v3 multiply_vector(m4x4& m, v3& p)
+	{
+		v3 result = {};
+		result.x = (p.x*m[0][0] + p.y*m[1][0] + p.z*m[2][0] + m[3][0]);
+		result.y = (p.x*m[0][1] + p.y*m[1][1] + p.z*m[2][1] + m[3][1]);
+		result.z = (p.x*m[0][2] + p.y*m[1][2] + p.z*m[2][2] + m[3][2]);
+		f32 w = p.x*m[0][3] + p.y*m[1][3] + p.z*m[2][3] + m[3][3];
+		if(w != 0.0f)
+		{
+			result.x /= w;
+			result.y /= w;
+			result.z /= w;
+		}
+		return result;
+	};
+
+	internal inline
+	m4x4 make_rotation_x(f32 angle_rad)
+	{
+		m4x4 result = {0.0f};
+		result[0][0] = 1.0f;
+		result[1][1] = math::cos(angle_rad);
+		result[1][2] = math::sin(angle_rad);
+		result[2][1] = -math::sin(angle_rad);
+		result[2][2] = math::cos(angle_rad);
+		result[3][3] = 1.0f;
+		return result;
+	}
+
+	internal inline
+	m4x4 make_rotation_y(f32 angle_rad)
+	{
+		m4x4 result = {0.0f};
+		result[0][0] = math::cos(angle_rad);
+		result[0][2] = math::sin(angle_rad);
+		result[2][0] = -math::sin(angle_rad);
+		result[1][1] = 1.0f;
+		result[2][2] = math::cos(angle_rad);
+		result[3][3] = 1.0f;
+		return result;
+	}
+
+	internal inline
+	m4x4 make_rotation_z(f32 angle_rad)
+	{
+		m4x4 result = {0.0f};
+		result[0][0] = math::cos(angle_rad);
+		result[0][1] = math::sin(angle_rad);
+		result[1][0] = -math::sin(angle_rad);
+		result[1][1] = math::cos(angle_rad);
+		result[2][2] = 1.0f;
+		result[3][3] = 1.0f;
+		return result;
+	}
+
+	internal inline
+	m4x4 make_translation(v3& translation)
+	{
+		m4x4 result = {0.0f};
+		result[0][0] = 1.0f;
+		result[1][1] = 1.0f;
+		result[2][2] = 1.0f;
+		result[3][3] = 1.0f;
+		result[3][0] = translation.x;
+		result[3][1] = translation.y;
+		result[3][2] = translation.z;
+		return result;
+	}
+
+	internal inline
+	m4x4 look_at(v3& position, v3& look_at, v3& up)
+	{
+		assert(!(length_squared(look_at) > 1.0f));
+		v3 up_correction = look_at*dot(up, look_at);
+		v3 real_up = normalize(up-up_correction);
+
+		v3 right = cross(real_up, look_at);
+		m4x4 result;
+		result[0][0] = right.x;
+		result[0][1] = right.y;
+		result[0][2] = right.z;
+		result[0][3] = 0.0f;
+
+		result[1][0] = look_at.x;
+		result[1][1] = look_at.y;
+		result[1][2] = look_at.z;
+		result[1][3] = 0.0f;
+
+		result[2][0] = up.x;
+		result[2][1] = up.y;
+		result[2][2] = up.z;
+		result[2][3] = 0.0f;
+
+		result[3][0] = position.x;
+		result[3][1] = position.y;
+		result[3][2] = position.z;
+		result[3][3] = 1.0f;
+		return result;
+	}
+
+	internal inline
+	m4x4 quick_inverse(m4x4& m) //only for rotation/translation matrices.
+	{
+		m4x4 result;
+		result[0][0] = m[0][0];
+		result[0][1] = m[1][0];
+		result[0][2] = m[2][0];
+		result[0][3] = 0.0f;
+
+		result[1][0] = m[0][1];
+		result[1][1] = m[1][1];
+		result[1][2] = m[2][1];
+		result[1][3] = 0.0f;
+		
+		result[2][0] = m[0][2];
+		result[2][1] = m[1][2];
+		result[2][2] = m[2][2];
+		result[2][3] = 0.0f;
+
+		result[3][0] = -(m[3][0]*result[0][0] +
+						 m[3][1]*result[1][0] +
+						 m[3][2]*result[2][0]);
+		result[3][1] = -(m[3][0]*result[0][1] +
+						 m[3][1]*result[1][1] +
+						 m[3][2]*result[2][1]);
+		result[3][2] = -(m[3][0]*result[0][2] +
+						 m[3][1]*result[1][2] +
+						 m[3][2]*result[2][2]);
+		result[3][3] = 1.0f;
+		return result;
+	}
 };
 
 inline
-m4x4 operator*(m4x4& a, m4x4& b)
+m4x4 operator*(m4x4 a, m4x4 b)
 {
 	m4x4 result = {};
 	result[0][0] = a[0][0]*b[0][0] + a[0][1]*b[1][0] + a[0][2]*b[2][0] + a[0][3]*b[3][0];
@@ -51,72 +184,8 @@ m4x4 operator*(m4x4& a, m4x4& b)
 	return result;
 }
 
-internal inline
-v3 multiply_matrix_vector(m4x4& m, v3& p)
+inline void
+operator*=(m4x4& a, m4x4& b)
 {
-    v3 result = {};
-	result.x = (p.x*m[0][0] + p.y*m[1][0] + p.z*m[2][0] + m[3][0]);
-	result.y = (p.x*m[0][1] + p.y*m[1][1] + p.z*m[2][1] + m[3][1]);
-	result.z = (p.x*m[0][2] + p.y*m[1][2] + p.z*m[2][2] + m[3][2]);
-	f32 w = p.x*m[0][3] + p.y*m[1][3] + p.z*m[2][3] + m[3][3];
-	if(w != 0.0f)
-	{
-		result.x /= w;
-		result.y /= w;
-		result.z /= w;
-	}
-	return result;
+	a = a*b;
 }
-
-template<u8 rows, u8 columns>
-struct matrix_base
-{
-	static_assert(rows>0, "matrix has to have atleast 1 row.");
-	static_assert(columns>0, "matrix has to have atleast 1 column.");
-	internal constexpr u8 rows = rows;
-	internal constexpr u8 columns = columns;
-
-	f32 elements[rows][columns];
-
-	inline f32* operator[](i32 i)
-	{
-		assert(i>=0 && i<rows);
-		return elements[i];
-	}
-
-	internal inline constexpr
-	matrix_base<rows, columns> identity()
-	{
-		static_assert(rows == columns, "identity only available when rows and columns are equal.");
-		matrix_base<rows, columns> result = {};
-		for(u8 row = 0; row<rows; ++row)
-		{
-			for(u8 column = 0; column<columns; ++column)
-			{
-				result[row][column] = (row==column) ? 1.0f : 0.0f;
-			}
-		}
-		return result;
-	}
-};
-
-template<typename m1, typename m2>
-inline matrix_base<m1::rows, m2::columns> operator*(m1 a, m2 b)
-{
-	static_assert(m1::columns == m2::rows, "Matrix A columns must equal to Matrix B rows.");
-	matrix_base<m1::rows, m2::columns> result = {};
-	for(u8 row=0; row<m1::rows; ++row)
-	{
-		for(u8 column=0; column<m2::columns; ++column)
-		{
-			result[row][column] = 0.0f;
-			for(u8 i=0; i<m1::columns; ++i)
-			{
-				result[row][column] += a[row][i] * b[i][column];
-			}
-		}
-	}
-	return result;
-}
-
-typedef matrix_base<4, 1> m4x1;

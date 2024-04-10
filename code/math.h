@@ -1,3 +1,6 @@
+global_variable constexpr f32 deg_to_rad = PI/180.0f;
+global_variable constexpr f32 rad_to_deg = 180.0f/PI;
+
 namespace math
 {
 
