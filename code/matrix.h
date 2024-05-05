@@ -25,13 +25,13 @@ struct m4x4
 	}
 
 	internal inline
-	v3 multiply_vector(m4x4& m, v3& p)
+	v3 multiply_vector(m4x4 m, v3 p)
 	{
 		v3 result = {};
-		result.x = (p.x*m[0][0] + p.y*m[1][0] + p.z*m[2][0] + m[3][0]);
-		result.y = (p.x*m[0][1] + p.y*m[1][1] + p.z*m[2][1] + m[3][1]);
-		result.z = (p.x*m[0][2] + p.y*m[1][2] + p.z*m[2][2] + m[3][2]);
-		f32 w = p.x*m[0][3] + p.y*m[1][3] + p.z*m[2][3] + m[3][3];
+		result.x = (p.x*m[0][0] + p.y*m[0][1] + p.z*m[0][2] + m[0][3]);
+		result.y = (p.x*m[1][0] + p.y*m[1][1] + p.z*m[1][2] + m[1][3]);
+		result.z = (p.x*m[2][0] + p.y*m[2][1] + p.z*m[2][2] + m[2][3]);
+		f32 w = p.x*m[3][0] + p.y*m[3][1] + p.z*m[3][2] + m[3][3];
 		if(w != 0.0f)
 		{
 			result.x /= w;
@@ -40,6 +40,16 @@ struct m4x4
 		}
 		return result;
 	};
+
+	internal inline
+	v3 multiply_vector_no_div(m4x4 m, v3 v)
+	{
+		v3 result = {};
+		result.x = (v.x*m[0][0] + v.y*m[0][1] + v.z*m[0][2] + m[0][3]);
+		result.y = (v.x*m[1][0] + v.y*m[1][1] + v.z*m[1][2] + m[1][3]);
+		result.z = (v.x*m[2][0] + v.y*m[2][1] + v.z*m[2][2] + m[2][3]);
+		return result;
+	}
 
 	internal inline
 	m4x4 make_rotation_x(f32 angle_rad)
@@ -88,9 +98,9 @@ struct m4x4
 		result[1][1] = 1.0f;
 		result[2][2] = 1.0f;
 		result[3][3] = 1.0f;
-		result[3][0] = translation.x;
-		result[3][1] = translation.y;
-		result[3][2] = translation.z;
+		result[0][3] = translation.x;
+		result[1][3] = translation.y;
+		result[2][3] = translation.z;
 		return result;
 	}
 
@@ -185,7 +195,7 @@ m4x4 operator*(m4x4 a, m4x4 b)
 }
 
 inline void
-operator*=(m4x4& a, m4x4& b)
+operator*=(m4x4& a, m4x4 b)
 {
 	a = a*b;
 }

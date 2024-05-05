@@ -537,7 +537,7 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 		game_state->should_rotate = true;
 		game_state->rotation = 0.0f;
 
-		game_state->camera_position = {0.0f, 0.0f, 0.0f};
+		game_state->camera_position = {0.0f, -5.0f, 0.0f};
 		game_state->camera_direction = {0.0f, 1.0f, 0.0f};
 
 		game_state->test_bitmap = _debug_load_bmp(thread, memory->debug_read_entire_file, "test/test_background.bmp");
@@ -987,50 +987,37 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 
 	// _draw_bitmap(&render_output, &game_state->player_bitmap, player_position);
 
-	f32 box[8*3] = {
-		-0.5f, -0.5f, -0.5f, //0
-		-0.5f, -0.5f, 0.5f, //1
-		0.5f, -0.5f, 0.5f, //2
-		0.5f, -0.5f, -0.5f, //3
-		-0.5f, 0.5f, -0.5f, //4
-		-0.5f, 0.5f, 0.5f, //5
-		0.5f, 0.5f, 0.5f, //6
-		0.5f, 0.5f, -0.5f //7
+	v3 box[8] = {
+		0.5f, -0.5f, -0.5f,
+		0.5f, -0.5f, 0.5f,
+		-0.5f, -0.5f, 0.5f,
+		-0.5f, -0.5f, -0.5f,
+		-0.5f, 0.5f, -0.5f,
+		-0.5f, 0.5f, 0.5f,
+		0.5f, 0.5f, 0.5f,
+		0.5f, 0.5f, -0.5f,
 	};
 
-	i32 box_faces[12*3] = {
-		//south
+	triangle box_faces[12] = {
 		0, 1, 2,
 		0, 2, 3,
-		//east
-		3, 2, 6,
-		3, 6, 7,
-		//west
-		4, 5, 1,
-		4, 1, 0,
-		//north
-		7, 6, 5,
-		7, 5, 4,
-		//top
-		1, 5, 6,
-		1, 6, 2,
-		//bottom
-		4, 0, 3,
-		4, 3, 7
+		3, 2, 5,
+		3, 5, 4,
+		4, 5, 6,
+		4, 6, 7,
+		7, 6, 1,
+		7, 1, 0,
+		1, 6, 5,
+		1, 5, 2,
+		7, 0, 3,
+		7, 3, 4
 	};
 
-	f32 near = 0.1f;
-	f32 far = 1000.0f;
-	f32 fov = 90.0f;
-	f32 aspect_ratio = (f32)render_output.height / (f32)render_output.width;
-	f32 fov_rad = 1.0f / math::tangent(fov * 0.5f / 180.0f * PI);
-
-	m4x4 projection = {0.0f};
-	projection[0][0] = aspect_ratio * fov_rad;
-	projection[1][1] = far / (far-near);
-	projection[2][2] = fov_rad;
-	projection[3][1] = (-far * near) / (far - near);
-	projection[1][3] = 1.0f;
+	loaded_mesh box_mesh = {};
+	box_mesh.vertices = box;
+	box_mesh.num_vertices = 8;
+	box_mesh.faces = box_faces;
+	box_mesh.num_faces = 12;
 
 	if(input::button_pressed(MOUSE_RIGHT))
 	{
@@ -1054,14 +1041,16 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	f32 z_rot = PI*0.25f + game_state->rotation;//game_state->rotation;
 	m4x4 rotation_z = m4x4::make_rotation_z(z_rot);
 
-	v3 box_position = {0.0f, 2.0f, 0.0f};
+	v3 box_position = {0.0f, 0.0f, 0.0f};
 	m4x4 translation = m4x4::make_translation(box_position);
-	m4x4 box_world_matrix = rotation_z*rotation_y*rotation_x*translation;
+	m4x4 box_world_matrix = translation*rotation_z*rotation_y*rotation_x;
+	// m4x4 box_world_matrix = translation;
 
 	v3 up = {0.0f, 0.0f, 1.0f};
 	game_state->camera_direction = {0.0f, 1.0f, 0.0f};
 
 	v3 camera_move_direction = {0.0f, 0.0f, 0.0f};
+
 	if(input::button_held(Q))
 	{
 		camera_move_direction -= {0.0f, 0.0f, 1.0f};
@@ -1072,11 +1061,19 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	}
 	if(input::button_held(A))
 	{
-		camera_move_direction += {1.0f, 0.0f, 0.0f};
+		camera_move_direction -= {1.0f, 0.0f, 0.0f};
 	}
 	if(input::button_held(D))
 	{
-		camera_move_direction -= {1.0f, 0.0f, 0.0f};
+		camera_move_direction += {1.0f, 0.0f, 0.0f};
+	}
+	if(input::button_held(W))
+	{
+		camera_move_direction += game_state->camera_direction;
+	}
+	if(input::button_held(S))
+	{
+		camera_move_direction -= game_state->camera_direction;
 	}
 	if(length_squared(camera_move_direction) != 0.0f)
 	{
@@ -1084,9 +1081,9 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 		game_state->camera_position += camera_move_direction*1.0f*time.dt;
 	}
 
-	m4x4 camera_matrix = m4x4::look_at(game_state->camera_position,
-		game_state->camera_direction, up);
-	m4x4 view_matrix = m4x4::quick_inverse(camera_matrix);
+	// m4x4 camera_matrix = m4x4::look_at(game_state->camera_position,
+	// 	game_state->camera_direction, up);
+	// m4x4 view_matrix = m4x4::quick_inverse(camera_matrix);
 
 	local_persist v3 light_direction = normalize({0.0f, -1.0f, 0.0f});
 
@@ -1096,100 +1093,117 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	{
 		for(i32 x=0; x<render_output.width; ++x)
 		{
-			*(depth_buffer + y*render_output.width + x) = 10000000000.0f; //revisist number
+			*(depth_buffer + y*render_output.width + x) = math::huge;
 		}
 	}
 
-	loaded_mesh& mesh = game_state->test_mesh;
+	f32 near = 0.1f;
+	f32 far = 1000.0f;
+	f32 vertical_fov = 120.0f;
+	f32 aspect_ratio = (f32)render_output.width/(f32)render_output.height;
+	f32 fov_rad = 1.0f / math::tangent(vertical_fov*math::deg_to_rad * 0.5f);
+
+	m4x4 perspective_projection = {};
+	perspective_projection[0][0] = 1.0f / (aspect_ratio*fov_rad);
+	perspective_projection[1][1] = far / (far-near);
+	perspective_projection[1][3] = -(far*near) / (far-near);
+	perspective_projection[2][2] = 1.0f / fov_rad;
+	perspective_projection[3][1] = 1.0f;
+
+/*
+	m4x4 projection = m4x4::identity();
+	projection[3][1] = -1.0f/game_state->camera_position.y;
+*/
+
+/*
+	m4x4 viewport = m4x4::identity();
+	{
+		viewport[0][0] = (f32)render_output.width/2.0f;
+		viewport[1][1] = 255.0f/2.0f;
+		viewport[2][2] = (f32)render_output.height/2.0f;
+		viewport[3][0] = (f32)render_output.width + (f32)render_output.width/2.0f;
+		viewport[3][1] = 255.0f/2.0f;
+		viewport[3][2] = (f32)render_output.height + (f32)render_output.height/2.0f;
+	}
+*/
+
+	m4x4 model_view;
+	{
+		v3 y = game_state->camera_direction;
+		v3 x = cross(up, y);
+		v3 z = cross(y, x);
+		m4x4 camera_rotation = m4x4::identity();
+		m4x4 camera_translation = m4x4::identity();
+		for(int i=0; i<3; ++i)
+		{
+			camera_rotation[0][i] = x.elements[i];
+			camera_rotation[1][i] = y.elements[i];
+			camera_rotation[2][i] = z.elements[i];
+			camera_translation[i][3] = -game_state->camera_position.elements[i];
+		}
+		model_view = camera_translation*camera_rotation;
+	}
+
+	// loaded_mesh& mesh = game_state->test_mesh;
+	loaded_mesh& mesh = box_mesh;
+	u32 num_discarded_triangles = 0;
+	u32 num_rendered_triangles = 0;
 	for(i32 face_i=0; face_i<mesh.num_faces; ++face_i)
 	{
 		triangle& tri = mesh.faces[face_i];
 
 		v3 screen_pos[3];
-		v3 tri_world_positions[3];
+		v3 camera_rel_positions[3];
+		v3 world_positions[3];
 
+		bool should_clip = true;
 		for(i32 i=0; i<3; ++i)
 		{
 			v3 local_position = mesh.vertices[tri.indicies[i]];
 			v3 world_position = m4x4::multiply_vector(box_world_matrix, local_position);
-			v3 viewed_position = m4x4::multiply_vector(view_matrix, world_position);
-			v3 projected_pos = m4x4::multiply_vector(projection, viewed_position);
+			v3 camera_rel_position = m4x4::multiply_vector(model_view, world_position);
+			v3 projected_pos = m4x4::multiply_vector(perspective_projection, camera_rel_position);
 			
+			should_clip &= (projected_pos.x < -1.0f || projected_pos.x > 1.0f) ||
+							(projected_pos.y < -1.0f || projected_pos.y > 1.0f) ||
+							(projected_pos.z < -1.0f || projected_pos.z > 1.0f);
 			screen_pos[i] = {
 				(projected_pos.x+1.0f) * 0.5f * (f32)render_output.width,
-				((-projected_pos.z+1.0f) * 0.5f * (f32)render_output.height),
-				viewed_position.y
+				(-projected_pos.z+1.0f) * 0.5f * (f32)render_output.height,
+				projected_pos.y
 			};
 
-			tri_world_positions[i] = world_position;
+			camera_rel_positions[i] = camera_rel_position;
+			world_positions[i] = world_position;
 		}
 
-		v3 normal = normalize(cross(tri_world_positions[1]-tri_world_positions[0], tri_world_positions[2]-tri_world_positions[0]));
-		v3 cam_to_triangle = normalize(tri_world_positions[0]-game_state->camera_position);
-		if(dot(cam_to_triangle, normal) < 0.0f)
+		if(should_clip)
 		{
-			f32 intensity = math::max(dot(normal, light_direction), 0.0f);
-			f32 r = 0.9f;
-			f32 g = 0.1f;
-			f32 b = 0.2f;
-			_draw_triangle(&render_output, screen_pos, r*intensity, g*intensity, b*intensity);
-
-			// _draw_line(render_output, screen_pos[0], screen_pos[1], 0.0f, 0.0f, 0.0f);
-			// _draw_line(render_output, screen_pos[0], screen_pos[2], 0.0f, 0.0f, 0.0f);
-			// _draw_line(render_output, screen_pos[1], screen_pos[2], 0.0f, 0.0f, 0.0f);
+			++num_discarded_triangles;
+			continue;
 		}
+
+		v3 normal = normalize(cross(camera_rel_positions[1]-camera_rel_positions[0], camera_rel_positions[2]-camera_rel_positions[0]));
+		if(dot(camera_rel_positions[0], normal) < 0.0f)
+		{
+			++num_discarded_triangles;
+			continue;
+		}
+
+		v3 world_normal = normalize(cross(world_positions[1]-world_positions[0], world_positions[2]-world_positions[0]));
+		f32 intensity = math::max(dot(world_normal, light_direction), 0.0f);
+		f32 r = 0.9f;
+		f32 g = 0.1f;
+		f32 b = 0.2f;
+		_draw_triangle(&render_output, screen_pos, r*intensity, g*intensity, b*intensity);
+
+		// _draw_line(render_output, screen_pos[0], screen_pos[1], 0.0f, 0.0f, 0.0f);
+		// _draw_line(render_output, screen_pos[0], screen_pos[2], 0.0f, 0.0f, 0.0f);
+		// _draw_line(render_output, screen_pos[1], screen_pos[2], 0.0f, 0.0f, 0.0f);
+		++num_rendered_triangles;
 	}
 
-	// for(u32 i=0; i<12; ++i)
-	// {
-	// 	math::v2 screen_pos[3];
-	// 	v3 triangle_world_positions[3];
-	// 	u32 strided_i = i*3;
-	// 	if(i==10)
-	// 	{
-	// 		i32 asd = 0;
-	// 	}
-	// 	for(u32 j=0; j<3; ++j)
-	// 	{
-	// 		i32 index = box_faces[strided_i+j]*3;
-
-	// 		v3 local_position = {
-	// 			box[index],
-	// 			box[index+1],
-	// 			box[index+2],
-	// 		};
-
-	// 		v3 world_position = m4x4::multiply_vector(box_world_matrix, local_position);
-	// 		// v3 viewed_position = m4x4::multiply_vector(view_matrix, world_position);
-	// 		v3 projected_pos = m4x4::multiply_vector(projection, world_position);
-
-	// 		screen_pos[j] = {
-	// 			(projected_pos.x+1.0f) * 0.5f * (f32)render_output.width,
-	// 			((-projected_pos.z+1.0f) * 0.5f * (f32)render_output.height)
-	// 		};
-
-	// 		triangle_world_positions[j] = {
-	// 			world_position.x,
-	// 			world_position.y,
-	// 			world_position.z
-	// 		};
-	// 	}
-
-	// 	v3 normal = normalize(cross(triangle_world_positions[2]-triangle_world_positions[0], triangle_world_positions[1]-triangle_world_positions[0]));
-	// 	v3 cam_to_triangle = normalize(triangle_world_positions[0]-game_state->camera_position);
-	// 	if(dot(cam_to_triangle, normal) < 0.0f)
-	// 	{
-	// 		f32 intensity = math::max(dot(normal, light_direction), 0.0f);
-	// 		f32 r = 0.9f;
-	// 		f32 g = 0.1f;
-	// 		f32 b = 0.2f;
-	// 		_draw_triangle(&render_output, screen_pos, r*intensity, g*intensity, b*intensity);
-
-	// 		_draw_line(render_output, screen_pos[0], screen_pos[1], 0.0f, 0.0f, 0.0f);
-	// 		_draw_line(render_output, screen_pos[0], screen_pos[2], 0.0f, 0.0f, 0.0f);
-	// 		_draw_line(render_output, screen_pos[1], screen_pos[2], 0.0f, 0.0f, 0.0f);
-	// 	}
-	// }
+	i32 asd = 0;
 }
 
 extern "C" GAME_FILL_AUDIO_OUTPUT(fill_audio_output)

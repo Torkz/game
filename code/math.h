@@ -1,8 +1,8 @@
-global_variable constexpr f32 deg_to_rad = PI/180.0f;
-global_variable constexpr f32 rad_to_deg = 180.0f/PI;
-
 namespace math
 {
+global_variable constexpr f32 deg_to_rad = PI/180.0f;
+global_variable constexpr f32 rad_to_deg = 180.0f/PI;
+global_variable constexpr f32 huge = (3.4e+38f);
 
 #include <math.h> //todo(staffan): get rid of this.
 internal inline i32 ceil_float_to_int(f32 value)
