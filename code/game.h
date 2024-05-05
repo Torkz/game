@@ -111,6 +111,14 @@ struct memory_space
 	memory_index used_memory;
 };
 
+internal
+void _initialize_memory_space(memory_space* space, u8* base, memory_index max_memory)
+{
+	space->base = base;
+	space->max_memory = max_memory;
+	space->used_memory = 0;
+}
+
 #define _push_struct(space, struct) (struct*)_push_size(space, sizeof(struct));
 #define _push_array(space, type, num_elements) (type*)_push_size(space, sizeof(type)*num_elements);
 
