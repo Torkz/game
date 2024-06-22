@@ -8,6 +8,16 @@ union v3
 };
 
 inline v3
+operator-(const v3& a)
+{
+    v3 result;
+    result.x = -a.x;
+    result.y = -a.y;
+    result.z = -a.z;
+    return result;
+}
+
+inline v3
 operator-(v3 a, v3 b)
 {
     v3 result;
@@ -99,7 +109,7 @@ length(v3 v)
 }
 
 inline v3
-normalize(v3 v)
+normalize(const v3& v)
 {
 	v3 result;
 	result = v / length(v);

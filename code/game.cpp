@@ -414,6 +414,10 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 		}
 	}
 
+	m4x4 box_world_matrices[2];
+	m4x4& box_world_matrix_1 = box_world_matrices[0];
+	m4x4& box_world_matrix_2 = box_world_matrices[1];
+
 	f32 x_rot = PI*0.25f;//game_state->rotation;
 	m4x4 rotation_x = m4x4::make_rotation_x(0.0f);
 
@@ -425,7 +429,8 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 
 	v3 box_position = {0.0f, 0.0f, 0.0f};
 	m4x4 translation = m4x4::make_translation(box_position);
-	m4x4 box_world_matrix = translation*rotation_z*rotation_y*rotation_x;
+	box_world_matrix_1 = translation*rotation_z*rotation_y*rotation_x;
+	box_world_matrix_2 = m4x4::make_translation({-2.0f, 0.0f, 0.0f})*rotation_z*rotation_y*rotation_x;
 	// m4x4 box_world_matrix = translation;
 
 	v3 up = {0.0f, 0.0f, 1.0f};
@@ -467,7 +472,7 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	// 	game_state->camera_direction, up);
 	// m4x4 view_matrix = m4x4::quick_inverse(camera_matrix);
 
-	local_persist v3 light_direction = normalize({0.0f, -1.0f, 0.0f});
+	local_persist v3 light_direction = normalize(v3({0.0f, -1.0f, 0.0f}));
 
 	// clear depth buffer
 	f32* depth_buffer = (f32*)((u8*)render_output.memory + render_output.pitch*render_output.height);
@@ -518,9 +523,9 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 		m4x4 camera_translation = m4x4::identity();
 		for(int i=0; i<3; ++i)
 		{
-			camera_rotation[0][i] = x.elements[i];
-			camera_rotation[1][i] = y.elements[i];
-			camera_rotation[2][i] = z.elements[i];
+			camera_rotation[i][0] = x.elements[i];
+			camera_rotation[i][1] = y.elements[i];
+			camera_rotation[i][2] = z.elements[i];
 			camera_translation[i][3] = -game_state->camera_position.elements[i];
 		}
 		model_view = camera_translation*camera_rotation;
@@ -530,59 +535,63 @@ extern "C" GAME_UPDATE_AND_RENDER(update_and_render)
 	loaded_mesh& mesh = box_mesh;
 	u32 num_discarded_triangles = 0;
 	u32 num_rendered_triangles = 0;
-	for(i32 face_i=0; face_i<mesh.num_faces; ++face_i)
+	for(u32 transform_i=0; transform_i<array_size(box_world_matrices); ++transform_i)
 	{
-		triangle& tri = mesh.faces[face_i];
-
-		v3 screen_pos[3];
-		v3 camera_rel_positions[3];
-		v3 world_positions[3];
-
-		bool should_clip = true;
-		for(i32 i=0; i<3; ++i)
+		m4x4& box_world_matrix = box_world_matrices[transform_i];
+		for(i32 face_i=0; face_i<mesh.num_faces; ++face_i)
 		{
-			v3 local_position = mesh.vertices[tri.indicies[i]];
-			v3 world_position = m4x4::multiply_vector(box_world_matrix, local_position);
-			v3 camera_rel_position = m4x4::multiply_vector(model_view, world_position);
-			v3 projected_pos = m4x4::multiply_vector(perspective_projection, camera_rel_position);
-			
-			should_clip &= (projected_pos.x < -1.0f || projected_pos.x > 1.0f) ||
-							(projected_pos.y < -1.0f || projected_pos.y > 1.0f) ||
-							(projected_pos.z < -1.0f || projected_pos.z > 1.0f);
-			screen_pos[i] = {
-				(projected_pos.x+1.0f) * 0.5f * (f32)render_output.width,
-				(-projected_pos.z+1.0f) * 0.5f * (f32)render_output.height,
-				projected_pos.y
-			};
+			triangle& tri = mesh.faces[face_i];
 
-			camera_rel_positions[i] = camera_rel_position;
-			world_positions[i] = world_position;
+			v3 screen_pos[3];
+			v3 camera_rel_positions[3];
+			v3 world_positions[3];
+
+			bool should_clip = true;
+			for(i32 i=0; i<3; ++i)
+			{
+				v3 local_position = mesh.vertices[tri.indicies[i]];
+				v3 world_position = m4x4::multiply_vector(box_world_matrix, local_position);
+				v3 camera_rel_position = m4x4::multiply_vector(model_view, world_position);
+				v3 projected_pos = m4x4::multiply_vector(perspective_projection, camera_rel_position);
+				
+				should_clip &= (projected_pos.x < -1.0f || projected_pos.x > 1.0f) ||
+								(projected_pos.y < -1.0f || projected_pos.y > 1.0f) ||
+								(projected_pos.z < -1.0f || projected_pos.z > 1.0f);
+				screen_pos[i] = {
+					(projected_pos.x+1.0f) * 0.5f * (f32)render_output.width,
+					(-projected_pos.z+1.0f) * 0.5f * (f32)render_output.height,
+					projected_pos.y
+				};
+
+				camera_rel_positions[i] = camera_rel_position;
+				world_positions[i] = world_position;
+			}
+
+			if(should_clip)
+			{
+				++num_discarded_triangles;
+				continue;
+			}
+
+			v3 normal = normalize(cross(camera_rel_positions[1]-camera_rel_positions[0], camera_rel_positions[2]-camera_rel_positions[0]));
+			if(dot(camera_rel_positions[0], normal) < 0.0f)
+			{
+				++num_discarded_triangles;
+				continue;
+			}
+
+			v3 world_normal = normalize(cross(world_positions[1]-world_positions[0], world_positions[2]-world_positions[0]));
+			f32 intensity = math::max(dot(world_normal, light_direction), 0.0f);
+			f32 r = 0.9f;
+			f32 g = 0.1f;
+			f32 b = 0.2f;
+			_draw_triangle(&render_output, screen_pos, r*intensity, g*intensity, b*intensity);
+
+			// _draw_line(render_output, screen_pos[0], screen_pos[1], 0.0f, 0.0f, 0.0f);
+			// _draw_line(render_output, screen_pos[0], screen_pos[2], 0.0f, 0.0f, 0.0f);
+			// _draw_line(render_output, screen_pos[1], screen_pos[2], 0.0f, 0.0f, 0.0f);
+			++num_rendered_triangles;
 		}
-
-		if(should_clip)
-		{
-			++num_discarded_triangles;
-			continue;
-		}
-
-		v3 normal = normalize(cross(camera_rel_positions[1]-camera_rel_positions[0], camera_rel_positions[2]-camera_rel_positions[0]));
-		if(dot(camera_rel_positions[0], normal) < 0.0f)
-		{
-			++num_discarded_triangles;
-			continue;
-		}
-
-		v3 world_normal = normalize(cross(world_positions[1]-world_positions[0], world_positions[2]-world_positions[0]));
-		f32 intensity = math::max(dot(world_normal, light_direction), 0.0f);
-		f32 r = 0.9f;
-		f32 g = 0.1f;
-		f32 b = 0.2f;
-		_draw_triangle(&render_output, screen_pos, r*intensity, g*intensity, b*intensity);
-
-		// _draw_line(render_output, screen_pos[0], screen_pos[1], 0.0f, 0.0f, 0.0f);
-		// _draw_line(render_output, screen_pos[0], screen_pos[2], 0.0f, 0.0f, 0.0f);
-		// _draw_line(render_output, screen_pos[1], screen_pos[2], 0.0f, 0.0f, 0.0f);
-		++num_rendered_triangles;
 	}
 
 	i32 asd = 0;

@@ -91,7 +91,7 @@ struct m4x4
 	}
 
 	internal inline
-	m4x4 make_translation(v3& translation)
+	m4x4 make_translation(const v3& translation)
 	{
 		m4x4 result = {0.0f};
 		result[0][0] = 1.0f;

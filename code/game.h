@@ -54,14 +54,7 @@ typedef double				f64;
 #define gigabytes(value) (megabytes(value)*1024)
 #define terabytes(value) (gigabytes(value)*1024)
 
-// #define array_size(array, type) sizeof(array)/sizeof(type);
-
-template <typename T>
-internal inline
-u32 array_size(T array)
-{
-	return sizeof(array)/sizeof(T);
-}
+#define array_size(array) sizeof(array)/sizeof(array[0])
 
 #include "game_intrinsics.h"
 

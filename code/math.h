@@ -126,6 +126,7 @@ f32 tangent(f32 a)
 #include "vector2.h"
 #include "vector3.h"
 #include "matrix.h"
+#include "quaternion.h"
 
 namespace math
 {
