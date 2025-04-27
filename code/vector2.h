@@ -2,13 +2,9 @@
 namespace math
 {
 
-union v2
+struct v2
 {
-	struct
-	{
-		f32 x, y;
-	};
-	f32 elements[2];
+	f32 x, y;
 };
 
 inline v2

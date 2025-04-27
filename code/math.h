@@ -111,6 +111,7 @@ internal inline
 f32 abs(f32 a)
 {
 	f32 result = (f32)fabs(a);
+	assert((result != result) == false);
 	return result;
 }
 
@@ -125,6 +126,7 @@ f32 tangent(f32 a)
 
 #include "vector2.h"
 #include "vector3.h"
+#include "vector4.h"
 #include "matrix.h"
 #include "quaternion.h"
 

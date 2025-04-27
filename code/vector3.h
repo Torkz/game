@@ -1,10 +1,6 @@
-union v3
+struct v3
 {
-    struct
-    {
-        f32 x, y, z;
-    };
-    f32 elements[3];
+    f32 x, y, z;
 };
 
 inline v3
@@ -111,6 +107,7 @@ length(v3 v)
 inline v3
 normalize(const v3& v)
 {
+    assert(length_squared(v) != 0.0f);
 	v3 result;
 	result = v / length(v);
 	return result;
@@ -127,9 +124,9 @@ dot(v3 a, v3 b)
 internal inline
 v3 cross(v3 a, v3 b)
 {
-    v3 result;
-    result.x = a.y*b.z - a.z*b.y;
-    result.y = a.z*b.x - a.x*b.z;
-    result.z = a.x*b.y - a.y*b.x;
-    return result;
+	v3 result;
+	result.x = a.y*b.z - a.z*b.y;
+	result.y = a.z*b.x - a.x*b.z;
+	result.z = a.x*b.y - a.y*b.x;
+	return result;
 }

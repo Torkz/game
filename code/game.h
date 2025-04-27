@@ -234,6 +234,7 @@ struct game_state
 
 	v3 camera_position;
 	v3 camera_direction;
+	quaternion camera_rotation;
 
 	loaded_mesh test_mesh;
 };
